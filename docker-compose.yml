@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+    db:
+        image: postgres
+    redis:
+        image: redis:latest
+        ports:
+            - 6379:6379
+    worker:
+        build: .
+        command: python3 manage.py runworker
+        volumes:
+            - .:/code
+        env_file:
+            - .env
+        depends_on:
+            - db
+            - redis
+    web:
+        build: .
+        command: daphne -b 0.0.0.0 -p 80 dpx.asgi:channel_layer
+        volumes:
+            - .:/code
+        ports:
+            - 80:80
+        env_file:
+            - .env
+        depends_on:
+            - db
+            - redis
+        expose:
+            - 80

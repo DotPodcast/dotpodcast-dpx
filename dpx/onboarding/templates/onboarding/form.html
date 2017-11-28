@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load bootstrap4 %}
+
+{% block pre_container %}
+    <div class="jumbotron">
+        <div class="container">
+            <h1>{{ _('Welcome') }}</h1>
+            <p class="lead">
+                {{ _('You&rsquo;re now ready to setup your podcast on the DotPodcast protocol.') }}
+            </p>
+        </div>
+    </div>
+{% endblock pre_container %}
+
+{% block main %}
+    <form class="form-horizontal" method="post">
+        {% bootstrap_form form layout='horizontal' %}
+        {% csrf_token %}
+
+        {% buttons %}
+            <button type="submit" class="btn btn-primary">Submit</button>
+        {% endbuttons %}
+    </form>
+{% endblock main %}

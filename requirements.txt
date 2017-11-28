@@ -1,0 +1,6 @@
+asgi_redis
+channels
+django-bootstrap4
+Django>=1.11<2.0
+psycopg2
+pytz
