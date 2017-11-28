@@ -4,8 +4,10 @@ from django.http.response import HttpResponseRedirect
 
 def onboarding_middleware(get_response):
     def middleware(request):
+        from ..hosting.models import Podcast
+
         if not request.path.startswith('/onboarding/'):
-            if not User.objects.filter(is_superuser=True).exists():
+            if not Podcast.objects.exists():
                 return HttpResponseRedirect('/onboarding/')
 
         return get_response(request)

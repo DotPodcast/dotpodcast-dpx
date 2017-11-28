@@ -25,7 +25,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'dpx.core.middleware.onboarding_middleware'
+    'dpx.onboarding.middleware.onboarding_middleware'
 ]
 
 ROOT_URLCONF = 'dpx.urls'
