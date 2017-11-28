@@ -58,7 +58,12 @@ class Person(models.Model):
 
 
 class Author(Person):
-    user = models.OneToOneField(site_settings.AUTH_USER_MODEL, related_name='author')
+    user = models.OneToOneField(
+        site_settings.AUTH_USER_MODEL,
+        related_name='author',
+        null=True,
+        on_delete=models.SET_NULL
+    )
 
 
 class Taxonomy(models.Model):
@@ -75,7 +80,12 @@ class Taxonomy(models.Model):
 
 
 class Term(models.Model):
-    taxonomy = models.ForeignKey(Taxonomy, related_name='terms')
+    taxonomy = models.ForeignKey(
+        Taxonomy,
+        related_name='terms',
+        on_delete=models.CASCADE
+    )
+
     name = models.CharField(max_length=300)
     url = models.URLField('URL', max_length=500, unique=True)
     description = models.TextField(null=True, blank=True)
@@ -91,7 +101,10 @@ class Term(models.Model):
 
 class Host(Person):
     user = models.OneToOneField(
-        site_settings.AUTH_USER_MODEL, related_name='host', null=True, blank=True
+        site_settings.AUTH_USER_MODEL,
+        related_name='host',
+        null=True,
+        on_delete=models.SET_NULL
     )
 
 
@@ -100,7 +113,10 @@ class Podcast(models.Model):
     subtitle = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     author = models.ForeignKey(
-        Author, related_name='podcasts', null=True, blank=True
+        Author,
+        related_name='podcasts',
+        null=True,
+        on_delete=models.SET_NULL
     )
 
     artwork = models.ImageField(
@@ -114,7 +130,11 @@ class Podcast(models.Model):
     publisher_name = models.CharField(max_length=300)
     publisher_url = models.URLField('URL', max_length=500, null=True, blank=True)
     publisher_logo = models.URLField(max_length=500, null=True, blank=True)
-    admins = models.ManyToManyField(site_settings.AUTH_USER_MODEL, related_name='publishers')
+    admins = models.ManyToManyField(
+        site_settings.AUTH_USER_MODEL,
+        related_name='publishers'
+    )
+
     hosts = models.ManyToManyField(Host, through='PodcastHost')
     taxonomy_terms = models.ManyToManyField(Term, related_name='podcasts')
 
@@ -253,8 +273,17 @@ class Podcast(models.Model):
 
 
 class PodcastHost(models.Model):
-    podcast = models.ForeignKey(Podcast)
-    host = models.ForeignKey(Host, related_name='podcasts')
+    podcast = models.ForeignKey(
+        Podcast,
+        on_delete=models.CASCADE
+    )
+
+    host = models.ForeignKey(
+        Host,
+        related_name='podcasts',
+        on_delete=models.CASCADE
+    )
+
     ordering = models.PositiveIntegerField()
 
     class Meta:
@@ -273,7 +302,12 @@ class Tag(models.Model):
 
 
 class Season(models.Model):
-    podcast = models.ForeignKey(Podcast, related_name='seasons')
+    podcast = models.ForeignKey(
+        Podcast,
+        related_name='seasons',
+        on_delete=models.CASCADE
+    )
+
     name = models.CharField(max_length=100)
     number = models.PositiveIntegerField()
 
@@ -285,7 +319,12 @@ class Season(models.Model):
 
 
 class Episode(models.Model):
-    podcast = models.ForeignKey(Podcast, related_name='episodes')
+    podcast = models.ForeignKey(
+        Podcast,
+        related_name='episodes',
+        on_delete=models.CASCADE
+    )
+
     remote_id = models.CharField(
         'remote ID', max_length=512, null=True, blank=True, db_index=True
     )
@@ -333,7 +372,10 @@ class Episode(models.Model):
     audio_filesize = models.PositiveIntegerField()
 
     season = models.ForeignKey(
-        Season, related_name='episodes', null=True, blank=True
+        Season,
+        related_name='episodes',
+        null=True,
+        on_delete=models.SET_NULL
     )
 
     number = models.PositiveIntegerField(default=0)
@@ -457,8 +499,17 @@ class Episode(models.Model):
 
 
 class EpisodeHost(models.Model):
-    episode = models.ForeignKey(Episode)
-    host = models.ForeignKey(Host, related_name='hosted_episodes')
+    episode = models.ForeignKey(
+        Episode,
+        on_delete=models.CASCADE
+    )
+
+    host = models.ForeignKey(
+        Host,
+        related_name='hosted_episodes',
+        on_delete=models.CASCADE
+    )
+
     ordering = models.PositiveIntegerField()
 
     class Meta:
@@ -467,8 +518,17 @@ class EpisodeHost(models.Model):
 
 
 class EpisodeGuest(models.Model):
-    episode = models.ForeignKey(Episode)
-    person = models.ForeignKey(Person, related_name='guesting_episodes')
+    episode = models.ForeignKey(
+        Episode,
+        on_delete=models.CASCADE
+    )
+
+    person = models.ForeignKey(
+        Person,
+        related_name='guesting_episodes',
+        on_delete=models.CASCADE
+    )
+
     ordering = models.PositiveIntegerField()
 
     class Meta:
@@ -477,7 +537,12 @@ class EpisodeGuest(models.Model):
 
 
 class Subscriber(models.Model):
-    podcast = models.ForeignKey(Podcast, related_name='subscribers')
+    podcast = models.ForeignKey(
+        Podcast,
+        related_name='subscribers',
+        on_delete=models.CASCADE
+    )
+
     source_token = models.CharField(max_length=255, unique=True)
     public_token = models.CharField(max_length=32, unique=True)
     secret_token = models.CharField(max_length=128, unique=True)
