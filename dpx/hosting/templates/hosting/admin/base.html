@@ -9,7 +9,20 @@
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="{% static 'css/datetimepicker.css' %}">
     <link rel="stylesheet" href="{% static 'css/bootstrap-markdown-editor.css' %}">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+    <script src="{% static 'js/thunderpush.js' %}"></script>
     <script src="{% static 'js/bootstrap-datetimepicker.js' %}"></script>
+
+    <script>
+        Thunder.connect(
+            '{{ DOMAIN }}:{{ THUNDERPUSH_PORT }}',
+            '{{ THUNDERPUSH_PUBLIC_KEY|escapejs }}',
+            ['django-rq'],
+            {
+                log: {{ DEBUG|lower }}
+            }
+        );
+    </script>
 
     <style>
         .qq-upload-drop-area {

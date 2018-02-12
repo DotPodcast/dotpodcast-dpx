@@ -5,6 +5,7 @@ from django.db.models import QuerySet, Q
 from django.utils import timezone
 from .exceptions import ValidationError
 from .settings import DOTPODCAST_DOMAIN
+import django_rq
 import re
 import string
 
@@ -22,7 +23,7 @@ class ContentObjectQuerySet(QuerySet):
 
 
 class PodcastQuerySet(QuerySet):
-    def ingest(self, url, data, slug=None):
+    def ingest(self, url, data, async=False):
         from urlparse import urlparse, urlunparse, urljoin
         from .models import Author, Term
         from .importing import download_file
@@ -59,7 +60,7 @@ class PodcastQuerySet(QuerySet):
                 )
             )
 
-        obj.episodes.ingest(data['items'])
+        obj.episodes.ingest(data['items'], async)
         return obj
 
 
@@ -95,13 +96,17 @@ class TermQuerySet(QuerySet):
         )
 
 
-class EpisodeQuerySet(QuerySet):
-    @transaction.atomic()
-    def _ingest(self, podcast, datum):
-        from dateutil.parser import parse as parse_date
-        from urlparse import urlparse, urlunparse, urljoin
-        from .importing import download_file
+@transaction.atomic()
+def _ingest(podcast_id, datum, async=False):
+    from dateutil.parser import parse as parse_date
+    from urlparse import urlparse, urlunparse, urljoin
+    from ..core import realtime
+    from .importing import download_file
+    from .models import Podcast, Episode, Season
+    import logging
 
+    try:
+        podcast = Podcast.objects.get(pk=podcast_id)
         u = lambda url: urlunparse(urlparse(url)).replace(' ', '%20')
         enclosure_url = u(datum['enclosure_url'])
         if not enclosure_url.startswith('http://') and not enclosure_url.startswith('https://'):
@@ -112,13 +117,12 @@ class EpisodeQuerySet(QuerySet):
             return
 
         try:
-            episode = self.select_for_update().get(
-                podcast=podcast,
+            episode = podcast.episodes.select_for_update().get(
                 title=datum.get('title') or '(Untitled)',
                 date_published=published
             )
-        except self.model.DoesNotExist:
-            episode = self.model(
+        except Episode.DoesNotExist:
+            episode = Episode(
                 podcast=podcast,
                 title=datum.get('title') or '(Untitled)',
                 date_published=published
@@ -133,7 +137,7 @@ class EpisodeQuerySet(QuerySet):
                 episode.season = podcast.seasons.get(
                     number=datum['season']
                 )
-            except podcast.seasons.model.DoesNotExist:
+            except Season.DoesNotExist:
                 episode.season = podcast.seasons.create(
                     number=datum['season']
                 )
@@ -216,8 +220,34 @@ class EpisodeQuerySet(QuerySet):
 
         episode.full_clean()
         episode.save()
+    except Exception, ex:
+        logging.getLogger('dpx.hosting').error(
+            'Error importing episode',
+            exc_info=True
+        )
 
-    def ingest(self, data):
+        realtime.push(
+            {
+                'import': {
+                    'error': unicode(ex)
+                }
+            },
+            'django-rq'
+        )
+    else:
+        if async:
+            realtime.push(
+                {
+                    'import': {
+                        'episode': episode.as_dict()
+                    }
+                },
+                'django-rq'
+            )
+
+
+class EpisodeQuerySet(QuerySet):
+    def ingest(self, data, async=False):
         from dateutil.parser import parse as parse_date
 
         podcast = None
@@ -236,7 +266,7 @@ class EpisodeQuerySet(QuerySet):
         data = sorted(data, key=lambda i: parse_date(i['date']))
 
         for datum in data:
-            self._ingest(podcast, datum)
+            _ingest(podcast.pk, datum, async)
 
     def published(self):
         return self.filter(

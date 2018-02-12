@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from django.contrib.auth import views as auth
-from ..views.admin import dashboard, episodes, pages, blog, settings
+from ..views.admin import dashboard, episodes, pages, blog, settings, importing
 
 
 urlpatterns = [
@@ -20,5 +20,7 @@ urlpatterns = [
     url(r'^blog/create/$', blog.CreateBlogPostFormView.as_view(), name='admin_create_blog_post'),
     url(r'^blog/(?P<pk>\d+)/$', blog.UpdateBlogPostFormView.as_view(), name='admin_update_blog_post'),
     url(r'^blog/(?P<pk>\d+)/delete/$', blog.DeleteBlogPostView.as_view(), name='admin_delete_blog_post'),
-    url(r'^settings/$', settings.PodcastFormView.as_view(), name='admin_podcast_settings')
+    url(r'^settings/$', settings.PodcastFormView.as_view(), name='admin_podcast_settings'),
+    url(r'^import/$', importing.CreateImportView.as_view(), name='admin_import_start'),
+    url(r'^import/progress/$', importing.ImportDetailView.as_view(), name='admin_import_progress')
 ]

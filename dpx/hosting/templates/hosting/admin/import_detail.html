@@ -1,0 +1,18 @@
+{% extends 'hosting/admin/base.html' %}
+{% load staticfiles i18n %}
+
+{% block main %}
+    <h2>
+        {% trans 'Importing podcast' %}
+    </h2>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div id="message-container" class="waiting">
+                <center style="padding: 150px 0;">
+                    <p><i class="fa fa-spin fa-spinner fa-3x"></i></p>
+                </center>
+            </div>
+        </div>
+    </div>
+{% endblock main %}

@@ -107,5 +107,35 @@ jQuery(document).ready(
                 );
             }
         );
+
+        Thunder.listen(
+            function(message) {
+                console.log(message);
+                if(!message.import) {
+                    return;
+                }
+
+                var div = $('<div>').addClass('alert');
+                var container = $('#message-container');
+
+                if(message.import.error) {
+                    div.addClass('alert-danger').text(
+                        message.import.error
+                    );
+                } else if(message.import.episode) {
+                    div.addClass('alert-success');
+                    div.text('Imported ')
+                    div.append(
+                        $('<strong>').text(message.import.episode.title)
+                    )
+                }
+
+                if(container.hasClass('waiting')) {
+                    container.html('').removeClass('waiting');
+                }
+
+                container.append(div);
+            }
+        );
     }
 );

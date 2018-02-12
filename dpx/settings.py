@@ -35,6 +35,37 @@ MIDDLEWARE = [
     'dpx.onboarding.middleware.onboarding_middleware'
 ]
 
+if DEBUG:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': True,
+        'root': {
+            'level': 'WARNING',
+            'handlers': ['console']
+        },
+        'handlers': {
+            'console': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler'
+            }
+        },
+        'loggers': {
+            'django': {
+                'level': 'INFO',
+                'handlers': ['console'],
+                'propagate': True
+            },
+            'django.db.backends': {
+                'level': 'ERROR',
+                'handlers': ['console'],
+                'propagate': False
+            },
+            'dpx.hosting': {
+                'level': 'DEBUG',
+            }
+        }
+    }
+
 ROOT_URLCONF = 'dpx.urls'
 SITE_ID = 1
 
@@ -129,3 +160,6 @@ DROPBOX_API_KEY = os.getenv('DROPBOX_API_KEY')
 DROPBOX_API_SECRET = os.getenv('DROPBOX_API_SECRET')
 
 DOMAIN = os.getenv('DOMAIN', 'localhost')
+THUNDERPUSH_PORT = 8080
+THUNDERPUSH_PUBLIC_KEY = os.getenv('PUBLIC_KEY')
+THUNDERPUSH_PRIVATE_KEY = os.getenv('PRIVATE_KEY')

@@ -17,9 +17,15 @@ services:
         depends_on:
             - db
             - redis
+    ws:
+        image: kjagiello/thunderpush
+        env_file:
+            - .dockerenv
+        ports:
+            - 8080:8080
     web:
         build: .
-        command: gunicorn --bind 0.0.0.0:80 dpx.wsgi
+        command: python manage.py runserver 0.0.0.0:80
         volumes:
             - .:/code
         ports:
