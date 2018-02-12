@@ -1,6 +1,11 @@
+.dockerenv
 .DS_Store
 .env
+.Python
 .vagrant
 *.pyc
-/venv
 *.sqlite3
+/bin
+/include
+/lib
+/venv

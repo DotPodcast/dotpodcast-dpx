@@ -49,3 +49,18 @@ class DownloadForm(forms.Form):
                 return self.instance
 
         raise Episode.NotFound('Episode not found.')
+
+
+class PodcastForm(forms.ModelForm):
+    class Meta:
+        model = Podcast
+        fields = (
+            'name',
+            'subtitle',
+            'description',
+            'artwork',
+            'banner_image',
+            'publisher_name',
+            'publisher_url',
+            'publisher_logo'
+        )

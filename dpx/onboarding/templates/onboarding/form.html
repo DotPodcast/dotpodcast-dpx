@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% load bootstrap4 %}
+{% extends 'core/dotpodcast.html' %}
+{% load bootstrap3 %}
 
 {% block pre_container %}
     <div class="jumbotron">
@@ -13,8 +13,8 @@
 {% endblock pre_container %}
 
 {% block main %}
-    <form class="form-horizontal" method="post">
-        {% bootstrap_form form layout='horizontal' %}
+    <form method="post" novalidate>
+        {% bootstrap_form form show_label=False %}
         {% csrf_token %}
 
         {% buttons %}

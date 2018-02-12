@@ -6,8 +6,8 @@ from .base import JsonView, FormMixin
 
 
 class PodcastMixin(object):
-    def dispatch(self, request, podcast_slug, *args, **kwargs):
-        self.podcast = get_object_or_404(Podcast, slug=podcast_slug)
+    def dispatch(self, request, *args, **kwargs):
+        self.podcast = get_object_or_404(Podcast)
         return super(PodcastMixin, self).dispatch(
             request, *args, **kwargs
         )

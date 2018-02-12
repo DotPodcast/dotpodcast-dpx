@@ -1,0 +1,66 @@
+{% load staticfiles %}<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+        {% if page.article %}
+            <link rel="canonical" href="{{ canonical }}" />
+            <meta name="description" content="{% if page.quote %}{{ page.quote }}{% else %}{{ page.content|striptags|truncatewords:20 }}{% endif %}">
+            <meta property="og:description" content="{% if page.quote %}{{ page.quote }}{% else %}{{ page.content|striptags|truncatewords:20 }}{% endif %}">
+            <meta itemprop="image" content="{% if page.image.url %}{{ site.url }}{{ site.baseurl }}{{ page.image.url }}{% else %}{{ site.url }}{{ site.baseurl }}{{ site.icon }}{% endif %}">
+            <meta property="og:image" content="{% if page.image.url %}{{ site.url }}{{ site.baseurl }}{{ page.image.url }}{% else %}{{ site.url }}{{ site.baseurl }}{{ site.icon }}{% endif %}">
+            <meta property="og:title" content="{{ page.title }}">
+            <meta property="og:type" content="article">
+            <meta property="og:url" content="{{ canonical }}">
+            <meta property="og:site_name" content="{{ podcast.name }}">
+        {% endif %}
+
+        <title>{% for part in title_parts %}{{ part }}{% if not forloop.last %} | {% endif %}{% endfor %}</title>
+
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="HandheldFriendly" content="True">
+        <meta name="MobileOptimized" content="320">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="stylesheet" media="only screen and (min-width: 900px)" href="{% static 'css/font-awesome.css' %}">
+        <link rel="stylesheet" media="only screen and (min-width: 900px)" href="{% static 'css/desktop.css' %}">
+        <link rel="stylesheet" media="only screen and (max-width: 899px)" href="{% static 'css/mobile.css' %}">
+        <link rel="stylesheet" href="{% static 'css/genericons.css' %}">
+        <link rel="stylesheet" href="{% static 'css/syntax.css' %}">
+        <link rel="stylesheet" href="{% static 'css/player.css' %}">
+        <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Fenix:400,400italic">
+
+        <script src="{% static 'js/jquery-2.1.0.min.js' %}"></script>
+        <script src="{% static 'js/jquery.stellar.min.js' %}"></script>
+        <script src="{% static 'js/subscribe.js' %}"></script>
+    </head>
+    <body>
+        <div id="middle">
+            {% block main %}{% endblock %}
+        </div>
+
+        <footer class="clean" style="background-image: url(''); background-position: bottom; bottom: 0; z-index: 4; position: absolute; height: 60px;">
+            <p class="copyright">
+                &copy;{% now '%Y' }}, <a href="{{ podcast.url }}" target="_blank">{{ podcast.author }}</a>
+            </p>
+        </footer>
+
+        <script>
+            var width = $(window).width();
+            if (width > 899) {
+                $(document).ready(
+                    function() {
+                        $.stellar(
+                            {
+                                responsive: true,
+                                verticalScrolling: true,
+                                horizontalOffset: 0,
+                                verticalOffset: 0,
+                                positionProperty: 'transform',
+                            }
+                        );
+                    }
+                );
+            }
+        </script>
+    </body>
+</html>

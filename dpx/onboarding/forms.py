@@ -3,7 +3,8 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils.translation import ugettext_lazy as _
-from ..hosting.models import Podcast, Author
+from ..hosting import TAXONOMIES
+from ..hosting.models import Podcast, Author, Taxonomy
 
 
 class OnboardingForm(forms.Form):
@@ -16,57 +17,48 @@ class OnboardingForm(forms.Form):
         )
     )
 
-    admin_username = forms.RegexField(
-        label=_('Admin username'),
-        regex=r'^[a-z0-9]+$',
-        help_text=_('Use lowercase letters and numbers'),
-        initial='admin'
-    )
-
-    admin_password = forms.CharField(
-        label=_('Admin account password'),
-        widget=forms.PasswordInput()
-    )
-
-    admin_password_confirm = forms.CharField(
-        label=_('Confirm your password'),
-        widget=forms.PasswordInput()
-    )
+    author_name = forms.CharField()
 
     language = forms.ChoiceField(
         choices=settings.LANGUAGES,
         initial=settings.LANGUAGE_CODE
     )
 
-    def clean_admin_password_confirm(self):
-        password = self.cleaned_data.get('admin_password')
-        confirmation = self.cleaned_data.get('admin_password_confirm')
-
-        if password != confirmation:
-            raise forms.ValidationError(
-                _('The password and confirmation do not match.')
-            )
-
-        return confirmation
-
     @transaction.atomic()
     def save(self, commit=True):
-        user = User.objects.create_user(
-            username=self.cleaned_data['admin_username'],
-            password=self.cleaned_data['admin_password']
-        )
-
         author = Author.objects.create(
-            user=user,
-            slug=user.username,
-            name=user.username
+            name=self.cleaned_data['author_name']
         )
 
-        podcast = Podcast.objects.create(
+        podcast = Podcast(
             name=self.cleaned_data['podcast_name'],
             author=author,
-            publisher_name=user.username
+            publisher_name=self.cleaned_data['author_name']
         )
 
-        podcast.admins.add(user)
+        if commit:
+            podcast.save()
+
         return podcast
+
+    def _save_m2m(self):
+        taxonomy = TAXONOMIES['language']
+        taxonomy = Taxonomy.objects.create(
+            name=taxonomy['name'],
+            url=taxonomy['base_url'],
+            description=taxonomy['description'],
+            required=True
+        )
+
+        language = self.cleaned_data.get('language')
+        for (key, name) in settings.LANGUAGES:
+            if key == language:
+                term = taxonomy.terms.create(
+                    name=name,
+                    url=taxonomy['url_template'] % key
+                )
+
+                self.instance.terms.add(term)
+                break
+
+        return term

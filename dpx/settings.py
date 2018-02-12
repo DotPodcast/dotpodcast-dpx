@@ -11,11 +11,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'channels',
-    'bootstrap4',
+    'django.contrib.sites',
+    'django_blockstack_auth',
+    'bootstrap3',
+    'datetimewidget',
+    'django_rq',
+    'markdown_deux',
+    'taggit',
     'dpx.core',
     'dpx.onboarding',
-    'dpx.hosting'
+    'dpx.hosting',
+    'dpx.theming'
 ]
 
 MIDDLEWARE = [
@@ -30,11 +36,14 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'dpx.urls'
+SITE_ID = 1
 
+THEME = 'default'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
+            os.path.join(BASE_DIR, 'themes', THEME, 'templates'),
             os.path.join(BASE_DIR, 'templates')
         ],
         'APP_DIRS': True,
@@ -44,6 +53,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dpx.core.context_processors.meta',
+                'dpx.theming.context_processors.theming'
             ]
         }
     }
@@ -61,15 +72,13 @@ DATABASES = {
     }
 }
 
-CHANNEL_LAYERS = {
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379')
+RQ_QUEUES = {
     'default': {
-        'BACKEND': 'asgi_redis.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [
-                ('redis', 6379)
-            ]
-        },
-        'ROUTING': 'dpx.routing.channel_routing'
+        'HOST': 'redis',
+        'PORT': 6379,
+        'DB': 0,
+        'DEFAULT_TIMEOUT': 360
     }
 }
 
@@ -85,7 +94,11 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    }
+]
+
+AUTHENTICATION_BACKENDS = [
+    'django_blockstack_auth.backends.BlockstackBackend'
 ]
 
 LANGUAGE_CODE = 'en'
@@ -96,3 +109,23 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+STATICFILES_DIRS = (
+    'themes/%s/static' % THEME,
+)
+
+STATICFILES_FINDERS = (
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder'
+)
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+LOGIN_URL = '/blockstack/login/'
+LOGIN_REDIRECT_URL = '/admin/'
+
+DROPBOX_API_KEY = os.getenv('DROPBOX_API_KEY')
+DROPBOX_API_SECRET = os.getenv('DROPBOX_API_SECRET')
+
+DOMAIN = os.getenv('DOMAIN', 'localhost')

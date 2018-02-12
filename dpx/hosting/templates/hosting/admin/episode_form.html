@@ -1,0 +1,68 @@
+{% extends 'hosting/admin/base.html' %}
+{% load i18n bootstrap3 %}
+
+{% block main %}
+    <h2 class="media-heading">
+        {% if form.instance.pk %}
+            {% trans 'Update episode' %}
+        {% else %}
+            {% trans 'Upload new episode' %}
+        {% endif %}
+    </h2>
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+        <div class="panel panel-default">
+            {% for error in form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {{ error }}
+                </div>
+            {% endfor %}
+
+            {% for field, error in form.errors.items %}
+                <div class="alert alert-danger">
+                    <strong>{{ field }}</strong>: {{ error|join:'<br>' }}
+                </div>
+            {% endfor %}
+
+            <div class="panel-body">
+                {% for field in form.header_fields %}
+                    {% bootstrap_field field show_label=False %}
+                {% endfor %}
+
+                {% if not object.pk %}
+                    {% bootstrap_field form.audio_enclosure %}
+                {% endif %}
+
+                <div class="form-horizontal">
+                    {% if object.pk %}
+                        {% bootstrap_field form.audio_enclosure layout='horizontal' %}
+                    {% endif %}
+
+                    {% for field in form.file_fields %}
+                        {% if field.name != 'audio_enclosure' %}
+                            {% bootstrap_field field layout='horizontal' %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% for field in form.other_fields %}
+                        {% bootstrap_field field layout='horizontal' %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <footer class="panel-footer">
+                <button type="submit" class="btn btn-success btn-lg">
+                    {% trans 'Save' %}
+                </button>
+
+                {% if object.pk %}
+                    <a class="btn btn-danger btn-lg pull-right" href="{% url 'admin_delete_episode' object.pk %}">
+                        {% trans 'Delete' %}
+                    </a>
+                {% endif %}
+            </footer>
+        </div>
+
+        {% csrf_token %}
+    </form>
+{% endblock main %}

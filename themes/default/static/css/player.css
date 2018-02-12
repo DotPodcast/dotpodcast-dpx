@@ -1,0 +1,54 @@
+.waveform-player {
+    left: 0;
+    right: 0;
+    top: 50%;
+    position: absolute;
+    height: 300px;
+}
+
+.waveform {
+    z-index: 10;
+    color: #fff;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -50%;
+    height: 300px;
+}
+
+.player-button {
+    background: #fff;
+    color: #666;
+    border-radius: 50%;
+    padding: 24px;
+    text-align: center;
+    margin: 0 auto;
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+    line-height: 24px;
+    cursor: pointer;
+    position: relative;
+    z-index: 20;
+}
+
+.player-button:before {
+    font-family: 'FontAwesome';
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.player-button.loading:before {
+    content: "\f110";
+    -webkit-animation: fa-spin 2s infinite linear;
+    animation: fa-spin 2s infinite linear;
+}
+
+.player-button.paused:before {
+    content: "\f04b";
+}
+
+.player-button.playing:before {
+    content: "\f04c";
+}

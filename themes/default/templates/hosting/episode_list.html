@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+
+{% block main %}
+    <header class="clean" style="height: 350px; background-image: url('{% if podcast.banner_image %}{{ podcast.banner_image.url }}{% else %}{% static 'images/cover.jpg' %}{% endif %}');" data-stellar-background-ratio="0.5" data-stellar-horizontal-offset="50">
+        {% include 'header.inc.html' %}
+
+        <a href="{{ podcast.get_home_page_url }}">
+            <div id="home-title" class="site-icon-home" style="background-image: url('{% if podcast.artwork %}{{ podcast.artwork.url }}{% else %}{% static 'images/icon.png' %}{% endif %}');" data-stellar-ratio="0.5"></div>
+        </a>
+    </header>
+
+    <div id="post-list">
+        {% for object in object_list %}
+            <div>
+                <span class="post-date">{{ object.date|date }}</span>
+
+                <h1>
+                    <a href="{{ object.get_absolute_url }}">{{ object.title }}</a>
+                </h1>
+
+                <p class="post-description">
+                    {{ object.body|striptags|truncatewords:50 }}
+                </p>
+            </div>
+            <br>
+        {% endfor %}
+    </div>
+
+    <nav class="pagination" role="navigation">
+        {% if page_obj.has_next_page %}
+            <a class="newer-posts" href="?page{{ page_obj.next_page_num }}">&larr; Older episodes</a>
+        {% endif %}
+
+        <span class="page-number">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_previous_page %}
+            {% if page_obj.number == 2 %}
+                <a class="older-posts" href="{{ request.path }}">episodes posts &rarr;</a>
+            {% else %}
+                <a class="older-posts" href="?page={{ page_obj.previous_page_num }}">Newer episodes &rarr;</a>
+            {% endif %}
+        {% endif %}
+    </nav>
+{% endblock main %}

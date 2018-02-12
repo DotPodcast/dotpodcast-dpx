@@ -1,9 +1,37 @@
 from django.conf import settings as site_settings
-from django.db import models
-from . import helpers, query, settings
+from django.db import models, transaction
+from django.utils.translation import ugettext_lazy as _
+from taggit.managers import TaggableManager
+from . import helpers, query, settings, tasks
+import django_rq
 
 
-class Person(models.Model):
+class ContentObject(models.Model):
+    state = models.CharField(
+        max_length=1,
+        choices=(
+            ('a', 'active'),
+            ('t', 'trashed')
+        ),
+        default='a',
+        editable=False
+    )
+
+    date_modified = models.DateTimeField(
+        auto_now=True, null=True, blank=True, editable=False
+    )
+
+    objects = query.ContentObjectQuerySet.as_manager()
+
+    def restore(self):
+        self.state = 'a'
+        self.save()
+
+    class Meta:
+        abstract = True
+
+
+class Person(ContentObject):
     slug = models.CharField(max_length=36, unique=True)
     name = models.CharField(max_length=100)
     url = models.URLField('URL', max_length=500, null=True, blank=True)
@@ -18,7 +46,7 @@ class Person(models.Model):
         max_length=500, db_index=True, null=True, blank=True
     )
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
     def save(self, *args, **kwargs):
@@ -72,7 +100,7 @@ class Taxonomy(models.Model):
     description = models.TextField(null=True, blank=True)
     required = models.BooleanField(default=False)
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
     class Meta:
@@ -92,7 +120,7 @@ class Term(models.Model):
 
     objects = query.TermQuerySet.as_manager()
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
     class Meta:
@@ -108,7 +136,7 @@ class Host(Person):
     )
 
 
-class Podcast(models.Model):
+class Podcast(ContentObject):
     name = models.CharField(max_length=300)
     subtitle = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
@@ -126,9 +154,16 @@ class Podcast(models.Model):
         blank=True
     )
 
-    banner_image = models.URLField(max_length=500, null=True, blank=True)
+    banner_image = models.ImageField(
+        upload_to=helpers.upload_banner,
+        max_length=255, null=True, blank=True
+    )
+
     publisher_name = models.CharField(max_length=300)
-    publisher_url = models.URLField('URL', max_length=500, null=True, blank=True)
+    publisher_url = models.URLField(
+        'publisher URL', max_length=500, null=True, blank=True
+    )
+
     publisher_logo = models.URLField(max_length=500, null=True, blank=True)
     admins = models.ManyToManyField(
         site_settings.AUTH_USER_MODEL,
@@ -137,13 +172,17 @@ class Podcast(models.Model):
 
     hosts = models.ManyToManyField(Host, through='PodcastHost')
     taxonomy_terms = models.ManyToManyField(Term, related_name='podcasts')
+    dropbox_api = models.TextField(u'Dropbox API', null=True, blank=True)
 
     objects = query.PodcastQuerySet.as_manager()
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
     def get_description_plain(self):
+        if not self.description:
+            return ''
+
         from bs4 import BeautifulSoup
 
         return ' '.join(
@@ -167,16 +206,13 @@ class Podcast(models.Model):
             )
 
     def get_home_page_url(self, ssl=False):
-        return helpers.absolute_url(
-            '/%s/' % self.slug,
-            ssl=ssl
-        )
+        return helpers.absolute_url('/', ssl=ssl)
 
     def get_feed_url(self, ssl=False):
         from django.core.urlresolvers import reverse
 
         return helpers.absolute_url(
-            reverse('podcast_feed', args=[self.slug]),
+            reverse('podcast_feed'),
             ssl=ssl
         )
 
@@ -184,7 +220,7 @@ class Podcast(models.Model):
         from django.core.urlresolvers import reverse
 
         return helpers.absolute_url(
-            reverse('podcast_subscribe', args=[self.slug])
+            reverse('podcast_subscribe')
         )
 
     def as_dict(self, page=1, ssl=False):
@@ -193,7 +229,7 @@ class Podcast(models.Model):
         )
 
         paginator = Paginator(
-            self.episodes.select_related().prefetch_related().published(),
+            self.episodes.select_related().prefetch_related().live(),
             settings.EPISODES_PER_PAGE
         )
 
@@ -268,6 +304,17 @@ class Podcast(models.Model):
             source_token=token
         )
 
+    @transaction.atomic()
+    def onboard(self, admin):
+        self.author.user = admin
+        self.author.save(update_fields=('user',))
+
+        self.admins.add(admin)
+        self.seasons.create(
+            name=_('Season 1'),
+            number=1
+        )
+
     class Meta:
         ordering = ('name',)
 
@@ -291,17 +338,7 @@ class PodcastHost(models.Model):
         unique_together = ('host', 'podcast')
 
 
-class Tag(models.Model):
-    name = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        ordering = ('name',)
-
-
-class Season(models.Model):
+class Season(ContentObject):
     podcast = models.ForeignKey(
         Podcast,
         related_name='seasons',
@@ -311,25 +348,20 @@ class Season(models.Model):
     name = models.CharField(max_length=100)
     number = models.PositiveIntegerField()
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name
 
     class Meta:
         ordering = ('number',)
 
 
-class Episode(models.Model):
+class Episode(ContentObject):
     podcast = models.ForeignKey(
         Podcast,
         related_name='episodes',
         on_delete=models.CASCADE
     )
 
-    remote_id = models.CharField(
-        'remote ID', max_length=512, null=True, blank=True, db_index=True
-    )
-
-    slug = models.CharField(max_length=100, editable=False)
     title = models.CharField(max_length=500)
     subtitle = models.TextField(null=True, blank=True)
     summary = models.TextField(null=True, blank=True)
@@ -342,16 +374,12 @@ class Episode(models.Model):
         blank=True
     )
 
-    remote_artwork = models.URLField(
-        null=True,
-        blank=True
+    banner_image = models.ImageField(
+        upload_to=helpers.upload_banner,
+        max_length=255, null=True, blank=True
     )
 
-    banner_image = models.URLField(max_length=500, null=True, blank=True)
     date_published = models.DateTimeField()
-    date_modified = models.DateTimeField(
-        auto_now=True, null=True, blank=True
-    )
 
     audio_enclosure = models.FileField(
         max_length=255, null=True, blank=True,
@@ -368,8 +396,8 @@ class Episode(models.Model):
     )
 
     video_mimetype = models.CharField(max_length=50, null=True, blank=True)
-    audio_duration = models.PositiveIntegerField()
-    audio_filesize = models.PositiveIntegerField()
+    video_duration = models.PositiveIntegerField()
+    video_filesize = models.PositiveIntegerField()
 
     season = models.ForeignKey(
         Season,
@@ -381,10 +409,11 @@ class Episode(models.Model):
     number = models.PositiveIntegerField(default=0)
     hosts = models.ManyToManyField(Host, through='EpisodeHost')
     taxonomy_terms = models.ManyToManyField(Term, related_name='episodes')
+    tags = TaggableManager(blank=True)
 
     objects = query.EpisodeQuerySet.as_manager()
 
-    def __str__(self):
+    def __unicode__(self):
         return self.title
 
     def download(self, kind):
@@ -405,22 +434,55 @@ class Episode(models.Model):
         raise Exception('Unknown media kind')
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = helpers.create_slug(
-                self.podcast.episodes,
-                self.pk is None,
-                self.title
-            )
+        with transaction.atomic():
+            runtasks = []
 
-        super(Episode, self).save(*args, **kwargs)
+            if not self.audio_duration:
+                self.audio_duration = 0
+                if self.audio_enclosure:
+                    runtasks.append('set_audio_duration')
+
+            if not self.audio_filesize:
+                self.audio_filesize = 0
+                if self.audio_enclosure:
+                    runtasks.append('set_audio_filesize')
+
+            if not self.video_duration:
+                self.video_duration = 0
+                if self.video_enclosure:
+                    runtasks.append('set_video_duration')
+
+            if not self.video_filesize:
+                self.video_filesize = 0
+                if self.video_enclosure:
+                    runtasks.append('set_video_filesize')
+
+            super(Episode, self).save(*args, **kwargs)
+
+        for task in runtasks:
+            func = getattr(tasks, task)
+            django_rq.enqueue(func, self.pk)
 
     def get_page_url(self, ssl=False):
         return helpers.absolute_url(
-            '/%s/' % self.slug,
+            '/%s/' % self.get_absolute_url(),
             ssl=ssl
         )
 
+    @models.permalink
+    def get_absolute_url(self):
+        return (
+            'episode_detail',
+            [
+                self.season.number,
+                str(self.number).zfill(2)
+            ]
+        )
+
     def get_body_plain(self):
+        if not self.body:
+            return ''
+
         from bs4 import BeautifulSoup
 
         return ' '.join(
@@ -493,7 +555,7 @@ class Episode(models.Model):
         return data
 
     class Meta:
-        unique_together = ('slug', 'podcast')
+        unique_together = ('number', 'season')
         ordering = ('-date_published',)
         get_latest_by = 'date_published'
 
@@ -549,7 +611,7 @@ class Subscriber(models.Model):
     date_subscribed = models.DateTimeField(auto_now_add=True)
     last_fetched = models.DateTimeField(null=True, blank=True)
 
-    def __str__(self):
+    def __unicode__(self):
         return self.name or self.token
 
     def save(self, *args, **kwargs):
@@ -569,3 +631,60 @@ class Subscriber(models.Model):
 
     class Meta:
         ordering = ('-last_fetched', '-date_subscribed')
+
+
+class Page(ContentObject):
+    title = models.CharField(max_length=50)
+    slug = models.SlugField(max_length=30, db_index=True)
+    parent = models.ForeignKey('self', null=True)
+    banner_image = models.ImageField(
+        upload_to=helpers.upload_banner,
+        max_length=255, null=True, blank=True
+    )
+
+    body = models.TextField(null=True, blank=True)
+    ordering = models.PositiveIntegerField(default=0)
+    objects = query.PageQuerySet.as_manager()
+
+    def __unicode__(self):
+        return self.title
+
+    @models.permalink
+    def get_absolute_url(self):
+        return ('page_detail', [self.slug])
+
+    class Meta:
+        unique_together = ('parent', 'slug')
+        ordering = ('ordering',)
+
+
+class BlogPost(ContentObject):
+    podcast = models.ForeignKey(
+        Podcast,
+        related_name='blog_posts',
+        on_delete=models.CASCADE
+    )
+
+    title = models.CharField(max_length=50)
+    slug = models.SlugField(max_length=30, unique=True)
+    date_published = models.DateTimeField(null=True, blank=True)
+
+    banner_image = models.ImageField(
+        upload_to=helpers.upload_banner,
+        max_length=255, null=True, blank=True
+    )
+
+    body = models.TextField(null=True, blank=True)
+    tags = TaggableManager(blank=True)
+    objects = query.BlogPostQuerySet.as_manager()
+
+    def __unicode__(self):
+        return self.title
+
+    @models.permalink
+    def get_absolute_url(self):
+        return ('blog_post_detail', [self.slug])
+
+    class Meta:
+        ordering = ('-date_published',)
+        get_latest_by = 'published'

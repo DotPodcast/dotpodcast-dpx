@@ -3,6 +3,14 @@ from hashlib import md5
 from os import path
 import random
 import string
+import time
+
+
+def upload_banner(instance, filename):
+    return 'banners/%s%s' % (
+        hex(int(time.time() * 10000000))[2:],
+        path.splitext(filename)[-1]
+    )
 
 
 def upload_avatar(instance, filename):
@@ -13,24 +21,23 @@ def upload_avatar(instance, filename):
 
 
 def upload_podcast_artwork(instance, filename):
-    return 'podcasts/%s/artwork%s' % (
-        md5(instance.slug).hexdigest(),
+    return 'artwork%s' % (
         path.splitext(filename)[-1]
     )
 
 
 def upload_episode_artwork(instance, filename):
-    return 'podcasts/%s/%s%s' % (
-        md5(instance.podcast.slug).hexdigest(),
-        md5(instance.slug).hexdigest(),
+    return 'episodes/%s%s%s' % (
+        instance.season.number,
+        str(instance.number).zfill(2),
         path.splitext(filename)[-1]
     )
 
 
 def upload_episode_enclosure(instance, filename):
-    return 'podcasts/%s/%s%s' % (
-        md5(instance.podcast.slug).hexdigest(),
-        md5(instance.slug).hexdigest(),
+    return 'episodes/%s%s%s' % (
+        instance.season.number,
+        str(instance.number).zfill(2),
         path.splitext(filename)[-1]
     )
 
@@ -82,13 +89,12 @@ def create_token(length, include_punctuation=False):
     )
 
 def absolute_url(url, ssl=False):
-    from django.contrib.sites.models import Site
-    from urllib.parse import urljoin
+    from django.conf import settings
+    from urlparse import urljoin
 
-    site = Site.objects.get_current()
     base = 'http%s://%s/' % (
         (ssl and 's' or ''),
-        site.domain
+        settings.DOMAIN
     )
 
     return urljoin(base, url)

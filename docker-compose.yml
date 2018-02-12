@@ -9,23 +9,23 @@ services:
             - 6379:6379
     worker:
         build: .
-        command: python3 manage.py runworker
+        command: python manage.py rqworker
         volumes:
             - .:/code
         env_file:
-            - .env
+            - .dockerenv
         depends_on:
             - db
             - redis
     web:
         build: .
-        command: daphne -b 0.0.0.0 -p 80 dpx.asgi:channel_layer
+        command: gunicorn --bind 0.0.0.0:80 dpx.wsgi
         volumes:
             - .:/code
         ports:
             - 80:80
         env_file:
-            - .env
+            - .dockerenv
         depends_on:
             - db
             - redis

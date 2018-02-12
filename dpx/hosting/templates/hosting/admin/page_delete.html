@@ -1,0 +1,28 @@
+{% extends 'hosting/admin/base.html' %}
+{% load i18n %}
+
+{% block main %}
+    <h2>
+        {% trans 'Delete page' %}
+    </h2>
+
+    <form method="post" class="panel panel-default">
+        <div class="panel-body">
+            <p class="lead">
+                {% trans 'Are you sure you want to delete this page?' %}
+            </p>
+        </div>
+
+        <footer class="panel-footer">
+            <button class="btn btn-danger btn-lg" type="submit">
+                {% trans 'Yes' %}
+            </button>
+
+            <a class="btn btn-default btn-lg pull-right" href="{% url 'admin_update_page' object.pk %}">
+                {% trans 'No' %}
+            </a>
+
+            {% csrf_token %}
+        </footer>
+    </form>
+{% endblock main %}

@@ -1,0 +1,173 @@
+{% extends 'core/dotpodcast.html' %}
+{% load staticfiles %}
+
+{% block head %}
+    {{ block.super }}
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/file-uploader/5.15.4/all.fine-uploader/fine-uploader-gallery.min.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="{% static 'css/datetimepicker.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-markdown-editor.css' %}">
+    <script src="{% static 'js/bootstrap-datetimepicker.js' %}"></script>
+
+    <style>
+        .qq-upload-drop-area {
+            padding: 30px 15px;
+            background: #fafafa;
+            border: 1px dashed #ccc;
+            text-align: center;
+            transition: all 300ms ease;
+
+            .hint {
+                font-size: 1.5em;
+                line-height: 1.5em;
+                margin-bottom: 1em;
+                color: #000;
+                opacity: .5;
+            }
+        }
+
+        .qq-upload-drop-area-active {
+            background: rgb(211, 245, 220);
+        }
+
+        .qq-upload-list {
+            li.qq-in-progress {
+                .qq-upload-file, .qq-upload-size {
+                    display: none;
+                }
+            }
+        }
+
+        .qq-hide {
+            display: none;
+        }
+
+        .qq-upload-list {
+            margin-top: 7px;
+            text-align: left;
+
+            > li {
+                margin-top: 3px;
+            }
+        }
+
+        .qq-drop-area {
+            min-height: 200px;
+        }
+    </style>
+{% endblock head %}
+
+{% block pre_container %}
+    <nav class="navbar navbar-default">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+
+                <a class="navbar-brand" href="/admin/">
+                    <img src="{% static 'img/logo-inverted.svg' %}" height="40">
+                </a>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    {% for item in menu_items %}
+                        <li class="nav-item{% if item.selected %} active{% endif %}">
+                            <a class="nav-link" href="{{ item.url }}">
+                                {{ item.title }}
+                                {% if item.selected %}
+                                    <span class="sr-only">({{ _('current') }})</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+{% endblock pre_container %}
+
+{% block post_container %}
+    <footer class="container">
+        <p>DPX v{{ DPX_VERSION }}</p>
+    </footer>
+{% endblock post_container %}
+
+{% block javascript %}
+    {{ block.super }}
+
+    <script type="text/template" id="qq-template-dropzone">
+        <div class="qq-uploader-selector qq-uploader">
+            <div class="qq-upload-drop-area-selector qq-upload-drop-area" qq-dropzone>
+                <p class="hint">Drop file here</p>
+                <div class="qq-upload-button-selector btn btn-success">Browse</div>
+            </div>
+
+            <span class="qq-drop-processing-selector qq-drop-processing">
+                <span>Processing dropped files...</span>
+                <span class="qq-drop-processing-spinner-selector">
+                    <i class="fa fa-spinner fa-spin"></i>
+                </span>
+            </span>
+
+            <ul class="qq-upload-list-selector qq-upload-list list-group" style="list-style-type: none;">
+                <li>
+                    <div class="qq-progress-bar-container-selector progress">
+                        <div class="qq-progress-bar-selector progress-bar"></div>
+                    </div>
+                    <span class="qq-upload-spinner-selector qq-upload-spinner"></span>
+                    <span class="qq-upload-file-selector qq-upload-file"></span>
+                    <small class="qq-upload-size-selector qq-upload-size"></small>
+                    <a class="qq-upload-delete-selector btn" href="#">Delete</a>
+                    <span class="qq-upload-status-text-selector qq-upload-status-text"></span>
+                </li>
+            </ul>
+        </div>
+    </script>
+
+    <script type="text/template" id="qq-template-button">
+        <div class="qq-uploader-selector qq-uploader">
+            <div class="row">
+                <div class="col-sm-1">
+                    <div class="qq-upload-button-selector btn btn-default">
+                        <i class="fa fa-upload"></i>
+                        Upload
+                    </div>
+                </div>
+
+                <div class="col-sm-11">
+                    <ul class="qq-upload-list-selector qq-upload-list list-group" style="list-style-type: none; margin: 0;">
+                        <li style="padding: 6px 7px; margin-top: 0;">
+                            <div class="qq-progress-bar-container-selector progress">
+                                <div class="qq-progress-bar-selector progress-bar"></div>
+                            </div>
+                            <span class="qq-upload-spinner-selector qq-upload-spinner"></span>
+                            <span class="qq-upload-file-selector qq-upload-file"></span>
+                            <small class="qq-upload-size-selector qq-upload-size"></small>
+                            <a class="qq-upload-delete-selector btn" href="#">Delete</a>
+                            <span class="qq-upload-status-text-selector qq-upload-status-text"></span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/file-uploader/5.15.4/all.fine-uploader/all.fine-uploader.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.2.9/ace.js"></script>
+    <script src="{% static 'js/bootstrap-markdown-editor.js' %}"></script>
+    <script src="{% static 'js/dashboard.js' %}"></script>
+
+    <script>
+        {% for message in messages %}toastr.{{ message.tags }}(
+            '{{ message.message|escapejs }}'
+        );{% endfor %}
+    </script>
+{% endblock javascript %}

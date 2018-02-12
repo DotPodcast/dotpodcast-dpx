@@ -1,0 +1,56 @@
+{% extends 'hosting/admin/base.html' %}
+{% load i18n %}
+
+{% block main %}
+    <h2>
+        {% trans 'Blog' %}
+        <a class="btn btn-primary btn-sm" href="{% url 'admin_create_blog_post' %}">
+            {% trans 'Create new post' %}
+        </a>
+    </h2>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th width="32">
+                            <input type="checkbox" name="select" value="all">
+                        </th>
+                        <th>{% trans 'Title' %}</th>
+                        <th>{% trans 'Date' %}</th>
+                        <th width="10%">{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for object in object_list %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="select" value="{{ object.pk }}">
+                            </td>
+                            <td>
+                                <a href="{% url 'admin_update_blog_post' object.pk %}">{{ object.title }}</a>
+                                {% if object.parent %}- child of <em>{{ object.parent.title }}</em>{% endif %}
+                            </td>
+                            <td>{{ object.date_published }}</td>
+                            <td>
+                                <a class="text-danger" href="{% url 'admin_delete_blog_post' object.pk %}">
+                                    <i class="fa fa-trash"></i> Delete
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4">
+                                {% blocktrans %}
+                                    You don&rsquo;t have any posts.
+                                {% endblocktrans %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock main %}

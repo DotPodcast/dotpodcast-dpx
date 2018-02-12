@@ -1,0 +1,33 @@
+{% load staticfiles %}
+
+<label class="menu" for="_1">
+    <span class="genericon genericon-menu"></span>
+</label>
+<input id="_1" type="checkbox">
+<div class="menu-content">
+    <p class="menu-title">{{ podcast.name }}<p>
+    <div class="menu" style="background-color: #1a1a1a; z-index: -1;"></div>
+
+    {% for item in menu_items %}
+        <a href="{{ item.url }}">{{ item.title }}</a>
+    {% endfor %}
+    <hr>
+
+    {% for link in social_links %}
+        <a href="{{ link.url }}" class="social-links-menu" target="_blank" title="{{ link.title }}">
+            <span class="genericon genericon-{{ link.icon }}"></span>
+        </a>
+    {% endfor %}
+
+    <a href="dotpodcast://{{ DOMAIN }}/feed.json" class="social-links-menu">Subscribe</a>
+</div>
+
+<div class="social-links" data-stellar-ratio="0.1">
+    {% for link in social_links %}
+        <a href="{{ link.url }}" target="_blank" title="{{ link.title }}">
+            <span class="genericon genericon-{{ link.icon }}"></span>
+        </a>
+    {% endfor %}
+
+    <a href="dotpodcast://{{ DOMAIN }}/feed.json">Subscribe</a>
+</div>

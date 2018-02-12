@@ -15,7 +15,12 @@ TAXONOMY_PATTERNS = {
 }
 
 
-class PodcastQuerySet(QuerySet):
+class ContentObjectQuerySet(QuerySet):
+    def live(self):
+        return self.filter(state='a')
+
+
+class PodcastQuerySet(ContentObjectQuerySet):
     @transaction.atomic()
     def ingest(self, url, data, keypair_generator=None):
         from .models import Author, Publisher, Term
@@ -151,7 +156,7 @@ class TermQuerySet(QuerySet):
         )
 
 
-class EpisodeQuerySet(QuerySet):
+class EpisodeQuerySet(ContentObjectQuerySet):
     def ingest(self, data):
         from dateutil.parser import parse as parse_date
         from .importing import download_file
@@ -222,7 +227,31 @@ class EpisodeQuerySet(QuerySet):
             episode.full_clean()
             episode.save()
 
-    def published(self):
-        return self.filter(
+    def live(self):
+        return super(EpisodeQuerySet, self).live().filter(
+            date_published__lte=timezone.now()
+        )
+
+
+class PageQuerySet(ContentObjectQuerySet):
+    def choices(self):
+        def children(parent=None, indent=0):
+            for (pk, name) in self.filter(
+                parent=parent
+            ).values_list(
+                'pk',
+                'title'
+            ):
+                yield (pk, ('- ' * indent) + name)
+                for child in children(pk, indent + 1):
+                    yield child
+
+        for (pk, name) in children():
+            yield (pk, name)
+
+
+class BlogPostQuerySet(ContentObjectQuerySet):
+    def live(self):
+        return super(BlogPostQuerySet, self).live().filter(
             date_published__lte=timezone.now()
         )
