@@ -40,7 +40,8 @@
 
         <footer class="clean" style="background-image: url(''); background-position: bottom; bottom: 0; z-index: 4; position: absolute; height: 60px;">
             <p class="copyright">
-                &copy;{% now '%Y' }}, <a href="{{ podcast.url }}" target="_blank">{{ podcast.author }}</a>
+                &copy; {% now 'Y' %},
+                <a href="{{ podcast.url }}" target="_blank">{{ podcast.author }}</a>
             </p>
         </footer>
 
