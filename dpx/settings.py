@@ -154,7 +154,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGIN_URL = '/blockstack/login/'
-LOGIN_REDIRECT_URL = '/admin/'
+LOGIN_REDIRECT_URL = '/admin/import/'
 
 DROPBOX_API_KEY = os.getenv('DROPBOX_API_KEY')
 DROPBOX_API_SECRET = os.getenv('DROPBOX_API_SECRET')
