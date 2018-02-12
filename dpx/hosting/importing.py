@@ -3,9 +3,9 @@ from .settings import DOTPODCAST_DOMAIN
 
 
 IMPORTERS = (
-    'dotpodcast.host.importers.wp.WordPressImporter',
-    'dotpodcast.host.importers.rss.RssAsHtmlImporter',
-    'dotpodcast.host.importers.rss.RssImporter'
+    'dpx.hosting.importers.wp.WordPressImporter',
+    'dpx.hosting.importers.rss.RssAsHtmlImporter',
+    'dpx.hosting.importers.rss.RssImporter'
 )
 
 CATEGORY_TERMS = {
@@ -96,8 +96,9 @@ def get_importer(name):
 
 def download_file(url, as_django_file=False):
     from tempfile import mkstemp
-    from os import write, close
+    from os import write, close, path
     from mimetypes import guess_extension
+    from urlparse import urlparse
     import requests
 
     response = requests.get(
@@ -107,19 +108,30 @@ def download_file(url, as_django_file=False):
                 'Mozilla/5.0 (iPhone; CPU iPhone OS 10_0 like Mac OS X) '
                 'AppleWebKit/602.1.38 (KHTML, like Gecko) Version/10.0 '
                 'Mobile/14A300 Safari/602.1'
-            )
+            ),
+            'Accept-Encoding': None
         },
         stream=True
     )
 
-    ext = guess_extension(response.headers['Content-Type'])
+    response.raise_for_status()
+
+    try:
+        ext = guess_extension(response.headers['content-type'])
+    except KeyError:
+        ext = ''
+
+    if not ext:
+        ext = path.splitext(urlparse(url).path)[-1]
+
+    print(url)
     handle, filename = mkstemp(suffix=ext)
 
-    response.raise_for_status()
-    for chunk in response.iter_content(chunk_size=1024):
-        write(handle, chunk)
-
-    close(handle)
+    try:
+        for chunk in response.iter_content(chunk_size=1024):
+            write(handle, chunk)
+    finally:
+        close(handle)
 
     if as_django_file:
         from django.core.files import File
@@ -143,20 +155,24 @@ def import_feed(stream):
     for importer in IMPORTERS:
         stream.seek(0)
         importer = get_importer(importer)
-        feed = importer.apply(
-            stream.read()
-        )
+
+        try:
+            feed = importer.apply(stream.read())
+        except UnicodeDecodeError:
+            continue
 
         if feed is None:
             continue
 
         metadata = importer.get_podcast_data(feed)
-        language = metadata.get('language')
-        explicit = metadata.get('explicit') != 'no'
+        language = metadata.get('language', '').strip()
+        explicit = metadata.get('explicit', 'no').strip() != 'no'
 
         def get_taxonomy_terms():
             if language:
-                yield LANGUAGE_TERM_TEMPLATE % language.replace('-', '_')
+                yield LANGUAGE_TERM_TEMPLATE % language.replace(
+                    '-', '_'
+                ).lower()
 
             yield PROFANITY_TERM_TEMPLATE % (
                 explicit and 'moderate' or 'none'
@@ -167,7 +183,6 @@ def import_feed(stream):
                     term = category_to_taxonomy_term(category)
                     if term:
                         yield term
-
 
         return dict(
             taxonomy_terms=get_taxonomy_terms(),
@@ -187,9 +202,9 @@ def get_feed_stream(url):
 
     try:
         filename = download_file(url)
-    except requests.exceptions.HTTPError as ex:
+    except requests.exceptions.RequestException as ex:
         raise ImportingHTTPError(
-            str(ex)
+            unicode(ex)
         )
 
     try:

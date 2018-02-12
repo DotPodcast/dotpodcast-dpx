@@ -21,10 +21,9 @@ class Command(BaseCommand):
             try:
                 stream = get_feed_stream(url)
             except ImportingHTTPError as ex:
-                self.stderr.write(str(ex))
+                self.stderr.write(unicode(ex))
                 continue
 
             feed = import_feed(stream)
             url = feed.get('link') or url
-
-            podcast = Podcast.objects.ingest(url, feed)
+            Podcast.objects.ingest(url, feed)

@@ -18,5 +18,9 @@ class InvalidContentTypeError(ViewError):
     pass
 
 
+class InvalidContentError(ViewError):
+    pass
+
+
 class InvalidTokenError(ViewError):
     pass

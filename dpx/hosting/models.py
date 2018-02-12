@@ -4,6 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 from taggit.managers import TaggableManager
 from . import helpers, query, settings, tasks
 import django_rq
+import string
 
 
 class ContentObject(models.Model):
@@ -351,6 +352,12 @@ class Season(ContentObject):
     def __unicode__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if not self.name:
+            self.name = 'Season %d' % int(self.number)
+
+        super(Season, self).save(*args, **kwargs)
+
     class Meta:
         ordering = ('number',)
 
@@ -366,6 +373,13 @@ class Episode(ContentObject):
     subtitle = models.TextField(null=True, blank=True)
     summary = models.TextField(null=True, blank=True)
     body = models.TextField(null=True, blank=True)
+    kind = models.CharField(max_length=10,
+        choices=(
+            ('trailer', 'trailer'),
+            ('episode', 'episode'),
+            ('bonus', 'bonus')
+        )
+    )
 
     artwork = models.ImageField(
         max_length=124,
@@ -387,8 +401,8 @@ class Episode(ContentObject):
     )
 
     audio_mimetype = models.CharField(max_length=50, null=True, blank=True)
-    audio_duration = models.PositiveIntegerField()
-    audio_filesize = models.PositiveIntegerField()
+    audio_duration = models.PositiveIntegerField(null=True, blank=True)
+    audio_filesize = models.PositiveIntegerField(null=True, blank=True)
 
     video_enclosure = models.FileField(
         max_length=255, null=True, blank=True,
@@ -396,8 +410,8 @@ class Episode(ContentObject):
     )
 
     video_mimetype = models.CharField(max_length=50, null=True, blank=True)
-    video_duration = models.PositiveIntegerField()
-    video_filesize = models.PositiveIntegerField()
+    video_duration = models.PositiveIntegerField(null=True, blank=True)
+    video_filesize = models.PositiveIntegerField(null=True, blank=True)
 
     season = models.ForeignKey(
         Season,
@@ -407,6 +421,7 @@ class Episode(ContentObject):
     )
 
     number = models.PositiveIntegerField(default=0)
+    number_bonus = models.PositiveIntegerField(default=0)
     hosts = models.ManyToManyField(Host, through='EpisodeHost')
     taxonomy_terms = models.ManyToManyField(Term, related_name='episodes')
     tags = TaggableManager(blank=True)
@@ -471,11 +486,21 @@ class Episode(ContentObject):
 
     @models.permalink
     def get_absolute_url(self):
+        if self.number_bonus:
+            return (
+                'bonus_episode_detail',
+                [
+                    self.season.number,
+                    unicode(self.number).zfill(2),
+                    self.letter_bonus
+                ]
+            )
+
         return (
             'episode_detail',
             [
                 self.season.number,
-                str(self.number).zfill(2)
+                unicode(self.number).zfill(2)
             ]
         )
 
@@ -554,8 +579,15 @@ class Episode(ContentObject):
 
         return data
 
+    @property
+    def letter_bonus(self):
+        if not self.number_bonus:
+            return ''
+
+        return string.lowercase[self.number_bonus - 1]
+
     class Meta:
-        unique_together = ('number', 'season')
+        unique_together = ('number_bonus', 'number', 'kind', 'season')
         ordering = ('-date_published',)
         get_latest_by = 'date_published'
 
@@ -596,41 +628,6 @@ class EpisodeGuest(models.Model):
     class Meta:
         ordering = ('ordering',)
         unique_together = ('person', 'episode')
-
-
-class Subscriber(models.Model):
-    podcast = models.ForeignKey(
-        Podcast,
-        related_name='subscribers',
-        on_delete=models.CASCADE
-    )
-
-    source_token = models.CharField(max_length=255, unique=True)
-    public_token = models.CharField(max_length=32, unique=True)
-    secret_token = models.CharField(max_length=128, unique=True)
-    date_subscribed = models.DateTimeField(auto_now_add=True)
-    last_fetched = models.DateTimeField(null=True, blank=True)
-
-    def __unicode__(self):
-        return self.name or self.token
-
-    def save(self, *args, **kwargs):
-        if not self.public_token:
-            self.public_token = helpers.create_token(32)
-
-        if not self.secret_token:
-            self.secret_token = helpers.create_token(128, True)
-
-        super(Subscriber, self).save(*args, **kwargs)
-
-    def as_dict(self):
-        return {
-            'subscriber_hash': self.source_token,
-            'subscriber_secret': self.secret_token
-        }
-
-    class Meta:
-        ordering = ('-last_fetched', '-date_subscribed')
 
 
 class Page(ContentObject):
@@ -688,3 +685,72 @@ class BlogPost(ContentObject):
     class Meta:
         ordering = ('-date_published',)
         get_latest_by = 'published'
+
+
+class Subscriber(models.Model):
+    podcast = models.ForeignKey(Podcast, related_name='subscribers')
+    app_name = models.CharField(max_length=100, null=True, blank=True)
+    app_url = models.URLField(u'app URL', max_length=512, null=True, blank=True)
+    app_logo = models.URLField(max_length=512, null=True, blank=True)
+    kind = models.CharField(max_length=1,
+        choices=(
+            ('c', 'casual listener'),
+            ('s', 'subscriber')
+        )
+    )
+
+    source_token = models.CharField(max_length=255)
+    public_token = models.CharField(max_length=64, unique=True)
+    secret_token = models.CharField(max_length=256, unique=True)
+    date_subscribed = models.DateTimeField(auto_now_add=True)
+    last_fetched = models.DateTimeField(null=True, blank=True)
+
+    def __unicode__(self):
+        return self.name or self.public_token
+
+    def save(self, *args, **kwargs):
+        if not self.public_token:
+            self.public_token = helpers.create_token(32)
+
+        if not self.secret_token:
+            self.secret_token = helpers.create_token(128, True)
+
+        super(Subscriber, self).save(*args, **kwargs)
+
+    def as_dict(self):
+        return {
+            'subscriber_hash': self.source_token,
+            'subscriber_secret': self.secret_token
+        }
+
+    class Meta:
+        ordering = ('-last_fetched', '-date_subscribed')
+        unique_together = ('source_token', 'podcast')
+
+
+class Player(models.Model):
+    podcast = models.ForeignKey(Podcast, related_name='players')
+    app_name = models.CharField(max_length=100, null=True, blank=True)
+    app_url = models.URLField(u'app URL', max_length=512)
+    app_logo = models.URLField(max_length=512, null=True, blank=True)
+    source_token = models.CharField(max_length=255, unique=True)
+    secret_token = models.CharField(max_length=256, unique=True)
+    last_fetched = models.DateTimeField(null=True, blank=True)
+
+    def __unicode__(self):
+        return self.name or self.app_url
+
+    def save(self, *args, **kwargs):
+        if not self.secret_token:
+            self.secret_token = helpers.create_token(128, True)
+
+        super(Player, self).save(*args, **kwargs)
+
+    def as_dict(self):
+        return {
+            'preview_secret': self.secret_token
+        }
+
+    class Meta:
+        ordering = ('-last_fetched',)
+        unique_together = ('app_url', 'podcast')

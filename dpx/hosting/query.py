@@ -1,11 +1,12 @@
 from django.apps import apps
 from django.conf import settings
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from django.utils import timezone
 from .exceptions import ValidationError
 from .settings import DOTPODCAST_DOMAIN
 import re
+import string
 
 
 TAXONOMY_PATTERNS = {
@@ -20,107 +21,45 @@ class ContentObjectQuerySet(QuerySet):
         return self.filter(state='a')
 
 
-class PodcastQuerySet(ContentObjectQuerySet):
-    @transaction.atomic()
-    def ingest(self, url, data, keypair_generator=None):
-        from .models import Author, Publisher, Term
+class PodcastQuerySet(QuerySet):
+    def ingest(self, url, data, slug=None):
+        from urlparse import urlparse, urlunparse, urljoin
+        from .models import Author, Term
         from .importing import download_file
 
-        try:
-            obj = self.get(remote_feed__iexact=url)
-        except self.model.DoesNotExist:
-            obj = self.model(remote_feed=url)
+        u = lambda url: urlunparse(urlparse(url)).replace(' ', '%20')
 
-        owner_name = data.get('owner_name')
-        owner_email = data.get('owner_email')
+        with transaction.atomic():
+            obj = self.model.objects.select_for_update().get()
+            obj.subtitle = obj.subtitle or data.get('subtitle')
+            obj.description = obj.description or data.get('description')
 
-        if not owner_name or not owner_name.strip():
-            raise ValidationError(
-                'Owner name not provided.'
-            )
-
-        if not owner_email or not owner_email.strip():
-            raise ValidationError(
-                'Owner email not provided.'
-            )
-
-        User = apps.get_model(settings.AUTH_USER_MODEL)
-
-        if ' ' in owner_name:
-            first_name, last_name = owner_name.rsplit(' ', 1)
-        else:
-            first_name = owner_name
-            last_name = ''
-
-        try:
-            user = User.objects.get(
-                email__iexact=owner_email
-            )
-        except User.DoesNotExist:
-            user = User.objects.create(
-                first_name=first_name,
-                last_name=last_name,
-                username=owner_email,
-                email=owner_email
-            )
-
-        try:
-            obj.author = Author.objects.get(user=user)
-        except Author.DoesNotExist:
-            obj.author = Author.objects.create(
-                name=user.get_full_name() or user.username,
-                user=user
-            )
-
-        if not obj.pk:
-            publisher_name = data.get('author')
-            if not publisher_name or not publisher_name.strip():
-                raise ValidationError(
-                    'Publisher name not provided.'
+            artwork = data.get('image')
+            if artwork and not obj.artwork:
+                obj.artwork = download_file(
+                    urljoin(
+                        u(url),
+                        u(artwork)
+                    ),
+                    as_django_file=True
                 )
 
-            try:
-                publisher = Publisher.objects.get(
-                    name__iexact=publisher_name
+            obj.full_clean()
+            obj.save()
+
+            added_terms = []
+            for term in data.get('taxonomy_terms', []):
+                term = Term.objects.infer(term)
+                obj.taxonomy_terms.add(term)
+                added_terms.append(term.pk)
+
+            obj.taxonomy_terms.remove(
+                *obj.taxonomy_terms.exclude(
+                    pk__in=added_terms
                 )
-            except Publisher.DoesNotExist:
-                publisher = Publisher.objects.create(
-                    name=publisher_name
-                )
-
-                publisher.admins.add(user)
-
-            obj.publisher = publisher
-
-        obj.name = data.get('title')
-        obj.subtitle = data.get('subtitle')
-        obj.copyright = data.get('copyright')
-        obj.summary = data.get('summary')
-        obj.description = data.get('description')
-
-        artwork = data.get('image')
-        if artwork and not obj.artwork:
-            obj.remote_artwork = artwork
-
-        obj.full_clean()
-        obj.save()
-
-        added_terms = []
-        for term in data.get('taxonomy_terms', []):
-            term = Term.objects.infer(term)
-            obj.taxonomy_terms.add(term)
-            added_terms.append(term.pk)
-
-        obj.taxonomy_terms.remove(
-            *obj.taxonomy_terms.exclude(
-                pk__in=added_terms
             )
-        )
 
-        obj.episodes.ingest(
-            data['items']
-        )
-
+        obj.episodes.ingest(data['items'])
         return obj
 
 
@@ -156,81 +95,156 @@ class TermQuerySet(QuerySet):
         )
 
 
-class EpisodeQuerySet(ContentObjectQuerySet):
-    def ingest(self, data):
+class EpisodeQuerySet(QuerySet):
+    @transaction.atomic()
+    def _ingest(self, podcast, datum):
         from dateutil.parser import parse as parse_date
+        from urlparse import urlparse, urlunparse, urljoin
         from .importing import download_file
 
-        podcast = None
+        u = lambda url: urlunparse(urlparse(url)).replace(' ', '%20')
+        enclosure_url = u(datum['enclosure_url'])
+        if not enclosure_url.startswith('http://') and not enclosure_url.startswith('https://'):
+            return
 
+        published = parse_date(datum['date'])
+        if not published:
+            return
+
+        try:
+            episode = self.select_for_update().get(
+                podcast=podcast,
+                title=datum.get('title') or '(Untitled)',
+                date_published=published
+            )
+        except self.model.DoesNotExist:
+            episode = self.model(
+                podcast=podcast,
+                title=datum.get('title') or '(Untitled)',
+                date_published=published
+            )
+
+        episode.subtitle = datum.get('subtitle')
+        episode.summary = datum.get('summary')
+        episode.body = datum.get('description')
+
+        if datum.get('season'):
+            try:
+                episode.season = podcast.seasons.get(
+                    number=datum['season']
+                )
+            except podcast.seasons.model.DoesNotExist:
+                episode.season = podcast.seasons.create(
+                    number=datum['season']
+                )
+        else:
+            episode.season = podcast.seasons.last()
+
+        if datum.get('episode'):
+            episode.number = datum['episode']
+        else:
+            episode.number = episode.season.episodes.count() + 1
+
+        episode.kind = datum.get('episode_type')
+
+        if not episode.number_bonus:
+            same_numbered_episodes = podcast.episodes.filter(
+                season=episode.season,
+                number=episode.number,
+                kind=episode.kind
+            )
+
+            if episode.pk:
+                same_numbered_episodes = same_numbered_episodes.exclude(
+                    pk=episode.pk
+                )
+
+            episode.number_bonus = same_numbered_episodes.count() + 1
+
+        try:
+            episode.date_published = published
+        except:
+            return
+
+        if not episode.date_published.tzinfo:
+            episode.date_published = episode.date_published.replace(
+                tzinfo=timezone.utc
+            )
+
+        if not episode.artwork:
+            artwork = datum.get('image')
+            if artwork:
+                episode.artwork = download_file(
+                    urljoin(
+                        (
+                            datum['url'] and u(datum['url']) or
+                            datum['id'] and u(datum['id'])
+                        ),
+                        u(artwork)
+                    ),
+                    as_django_file=True
+                )
+
+            mimetype = datum['enclosure_type'](enclosure_url)
+            filesize = datum['enclosure_size']()
+            duration = datum['enclosure_duration'](filesize)
+            parts = str(duration).split(':')
+
+            if len(parts) == 3:
+                hours, minutes, seconds = [int(i) for i in parts]
+            elif len(parts) == 2:
+                minutes, seconds = [int(i) for i in parts]
+                hours = 0
+            else:
+                minutes, hours = 0, 0
+                seconds = int(duration)
+
+            duration = (hours * 60 * 60) + (minutes * 60) + seconds
+
+            if mimetype.startswith('audio/'):
+                episode.audio_enclosure = download_file(enclosure_url, True)
+                episode.audio_mimetype = mimetype
+                episode.audio_filesize = filesize
+                episode.audio_duration = duration
+            elif mimetype.startswith('video/'):
+                episode.video_enclosure = download_file(enclosure_url, True)
+                episode.video_mimetype = mimetype
+                episode.video_filesize = filesize
+                episode.audio_duration = duration
+            else:
+                return
+
+        episode.full_clean()
+        episode.save()
+
+    def ingest(self, data):
+        from dateutil.parser import parse as parse_date
+
+        podcast = None
         for field, relation in self._known_related_objects.items():
             if podcast is not None:
                 break
 
             for pk, obj in relation.items():
-                if obj._meta.db_table == 'host_podcast':
+                if obj._meta.db_table == 'hosting_podcast':
                     podcast = obj
                     break
 
+        if podcast is None:
+            return
+
+        data = sorted(data, key=lambda i: parse_date(i['date']))
+
         for datum in data:
-            try:
-                episode = self.get(
-                    remote_id=datum['id']
-                )
-            except self.model.DoesNotExist:
-                episode = self.model(
-                    remote_id=datum['id'],
-                    podcast=podcast
-                )
+            self._ingest(podcast, datum)
 
-            episode.title = datum.get('title')
-            episode.subtitle = datum.get('subtitle')
-            episode.summary = datum.get('summary')
-            episode.body = datum.get('description')
-            episode.date_published = parse_date(datum['date'])
-
-            artwork = datum.get('image')
-            if artwork and not episode.artwork:
-                episode.remote_artwork = artwork
-
-            mimetype = datum['enclosure_type']
-            duration = datum.get('enclosure_duration')
-
-            if duration:
-                parts = duration.split(':')
-                if len(parts) == 3:
-                    hours, minutes, seconds = [int(i) for i in parts]
-                elif len(parts) == 2:
-                    minutes, seconds = [int(i) for i in parts]
-                    hours = 0
-                else:
-                    minutes, hours = 0, 0
-                    seconds = int(duration)
-
-                duration = (hours * 60 * 60) + (minutes * 60) + seconds
-
-            if mimetype.startswith('audio/'):
-                episode.remote_audio_enclosure = datum['enclosure_url']
-                episode.audio_mimetype = datum['enclosure_type']
-                episode.audio_filesize = datum['enclosure_size']
-
-                if duration:
-                    episode.audio_duration = duration
-            elif mimetype.startswith('video/'):
-                episode.remote_video_enclosure = datum['enclosure_url']
-                episode.video_mimetype = datum['enclosure_type']
-                episode.video_filesize = datum['enclosure_size']
-
-                if duration:
-                    episode.audio_duration = duration
-
-            episode.full_clean()
-            episode.save()
-
-    def live(self):
-        return super(EpisodeQuerySet, self).live().filter(
+    def published(self):
+        return self.filter(
             date_published__lte=timezone.now()
         )
+
+    def letter_to_number(self, letter):
+        return string.lowercase.find(letter) + 1
 
 
 class PageQuerySet(ContentObjectQuerySet):

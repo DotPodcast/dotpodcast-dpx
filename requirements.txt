@@ -18,3 +18,4 @@ requests>=2.5.1
 rq
 lxml
 beautifulsoup4
+python-dateutil

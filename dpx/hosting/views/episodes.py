@@ -27,7 +27,16 @@ class EpisodeDetailView(PodcastMixin, DetailView):
         return super(EpisodeDetailView, self).get_query_set().live()
 
     def get_object(self):
-        return self.model.objects.get(
+        objects = self.model.objects.filter(
             season__number=self.kwargs['season_number'],
             number=self.kwargs['episode_number']
         )
+
+        if self.kwargs.get('bonus_letter'):
+            objects = objects.filter(
+                number_bonus=objects.letter_to_number(
+                    self.kwargs['bonus_letter']
+                )
+            )
+
+        return objects.get()

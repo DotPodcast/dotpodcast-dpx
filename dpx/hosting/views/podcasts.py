@@ -68,7 +68,7 @@ class DownloadView(PodcastMixin, FormMixin, JsonView):
                 )
             except InvalidTokenError as ex:
                 raise exceptions.InvalidTokenError(
-                    str(ex)
+                    unicode(ex)
                 )
 
         raise exceptions.InvalidTokenError(

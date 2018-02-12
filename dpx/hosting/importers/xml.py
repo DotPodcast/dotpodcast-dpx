@@ -36,8 +36,8 @@ class XmlMixin(object):
         if item is not None:
             return '\n\n'.join(
                 [
-                    str(s) for s in item.contents
-                    if str(s) != ']]>'
+                    unicode(s) for s in item.contents
+                    if unicode(s) != ']]>'
                 ]
             )
 

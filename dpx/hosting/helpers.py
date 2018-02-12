@@ -29,7 +29,7 @@ def upload_podcast_artwork(instance, filename):
 def upload_episode_artwork(instance, filename):
     return 'episodes/%s%s%s' % (
         instance.season.number,
-        str(instance.number).zfill(2),
+        unicode(instance.number).zfill(2),
         path.splitext(filename)[-1]
     )
 
@@ -37,7 +37,7 @@ def upload_episode_artwork(instance, filename):
 def upload_episode_enclosure(instance, filename):
     return 'episodes/%s%s%s' % (
         instance.season.number,
-        str(instance.number).zfill(2),
+        unicode(instance.number).zfill(2),
         path.splitext(filename)[-1]
     )
 

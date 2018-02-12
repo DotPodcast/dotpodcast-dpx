@@ -20,14 +20,14 @@ class JsonView(View):
         except Http404 as ex:
             data = self.response(
                 {
-                    'error': str(ex)
+                    'error': unicode(ex)
                 },
                 status=404
             )
         except ViewError as ex:
             data = self.response(
                 {
-                    'error': str(ex)
+                    'error': unicode(ex)
                 },
                 status=400
             )
