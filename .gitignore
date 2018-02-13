@@ -5,8 +5,8 @@
 .vagrant
 *.pyc
 *.sqlite3
-/bin
 /include
 /lib
 /media
+/postgres-data
 /venv
