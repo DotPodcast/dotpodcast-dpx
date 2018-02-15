@@ -12,7 +12,7 @@ git+https://github.com/blockstack/blockstack-auth-python.git
 gunicorn
 mutagen
 Pillow
-psycopg2
+psycopg2-binary
 pytz
 requests>=2.5.1
 rq

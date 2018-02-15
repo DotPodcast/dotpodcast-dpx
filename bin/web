@@ -1,1 +1,12 @@
-python manage.py migrate && gunicorn dpx.wsgi -b 0.0.0.0:8000
+#!/bin/bash
+# web
+cd /code/
+
+until python manage.py checkdb; do
+  >&2 echo "Postgres is unavailable - sleeping"
+  sleep 1
+done
+
+>&2 echo "Postgres is up - executing command"
+python manage.py migrate
+gunicorn dpx.wsgi -b 0.0.0.0:8000

@@ -1,42 +1,28 @@
-version: '3'
+version: '2'
 
 services:
     db:
         image: postgres
         volumes:
             - ./postgres-data:/var/lib/postgresql/data
-        healthcheck:
-            test: ['CMD', 'telnet', 'db', '5432']
-            interval: 60s
-            timeout: 3s
     redis:
         image: redis:latest
         ports:
             - 6379:6379
-        healthcheck:
-            test: ['CMD', 'telnet', 'db', '6379']
-            interval: 60s
-            timeout: 3s
     worker:
         build: .
-        command: bash /code/bin/worker
+        command: /code/bin/worker
         volumes:
             - .:/code
         env_file:
             - .dockerenv
-        depends_on:
-            - db
-            - redis
     web:
         build: .
-        command: bash /code/bin/web
+        command: /code/bin/web
         volumes:
             - .:/code
         env_file:
             - .dockerenv
-        depends_on:
-            - db
-            - redis
         expose:
             - 8000
     ws:
@@ -49,8 +35,5 @@ services:
         image: nginx:latest
         volumes:
           - ./conf/nginx:/etc/nginx/conf.d
-        depends_on:
-          - web
-          - ws
         ports:
           - 80:80
