@@ -7,6 +7,7 @@ def meta(request):
         'DPX_VERSION': __version__,
         'DOMAIN': settings.DOMAIN,
         'DEBUG': settings.DEBUG,
+        'THUNDERPUSH_DOMAIN': settings.THUNDERPUSH_DOMAIN,
         'THUNDERPUSH_PORT': settings.THUNDERPUSH_PORT,
         'THUNDERPUSH_PUBLIC_KEY': settings.THUNDERPUSH_PUBLIC_KEY
     }

@@ -15,7 +15,7 @@
 
     <script>
         Thunder.connect(
-            '{{ DOMAIN }}:{{ THUNDERPUSH_PORT }}',
+            '{{ THUNDERPUSH_DOMAIN }}:{{ THUNDERPUSH_PORT }}',
             '{{ THUNDERPUSH_PUBLIC_KEY|escapejs }}',
             ['django-rq'],
             {

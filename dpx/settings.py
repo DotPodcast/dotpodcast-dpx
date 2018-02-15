@@ -151,7 +151,7 @@ STATICFILES_FINDERS = (
 )
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = '/media/'
 
 LOGIN_URL = '/blockstack/login/'
 LOGIN_REDIRECT_URL = '/admin/import/'
@@ -160,6 +160,7 @@ DROPBOX_API_KEY = os.getenv('DROPBOX_API_KEY')
 DROPBOX_API_SECRET = os.getenv('DROPBOX_API_SECRET')
 
 DOMAIN = os.getenv('DOMAIN', 'localhost')
+THUNDERPUSH_DOMAIN = os.getenv('THUNDERPUSH_DOMAIN', DOMAIN)
 THUNDERPUSH_PORT = 8080
 THUNDERPUSH_PUBLIC_KEY = os.getenv('PUBLIC_KEY')
 THUNDERPUSH_PRIVATE_KEY = os.getenv('PRIVATE_KEY')
