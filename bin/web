@@ -9,4 +9,4 @@ done
 
 >&2 echo "Postgres is up - executing command"
 python manage.py migrate
-gunicorn dpx.wsgi -b 0.0.0.0:8000
+gunicorn dpx.wsgi -b 0.0.0.0:8000 --reload
