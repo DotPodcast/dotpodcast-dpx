@@ -2,6 +2,7 @@ from django.conf import settings as site_settings
 from django.db import models, transaction
 from django.utils.translation import ugettext_lazy as _
 from taggit.managers import TaggableManager
+from uuid import uuid4
 from . import helpers, query, settings, tasks
 import django_rq
 import string
@@ -181,9 +182,6 @@ class Podcast(ContentObject):
         return self.name
 
     def get_description_plain(self):
-        if not self.description:
-            return ''
-
         from bs4 import BeautifulSoup
 
         return ' '.join(
@@ -193,12 +191,25 @@ class Podcast(ContentObject):
             ).findAll(text=True)
         ).strip()
 
+    def get_previous_url(self, page, ssl=False):
+        from django.utils.http import urlencode
+
+        if page.has_previous():
+            return '%s?%s' % (
+                self.get_feed_body_url(ssl=ssl),
+                urlencode(
+                    {
+                        'page': page.previous_page_number()
+                    }
+                )
+            )
+
     def get_next_url(self, page, ssl=False):
         from django.utils.http import urlencode
 
         if page.has_next():
             return '%s?%s' % (
-                self.get_feed_url(ssl=ssl),
+                self.get_feed_body_url(ssl=ssl),
                 urlencode(
                     {
                         'page': page.next_page_number()
@@ -209,11 +220,19 @@ class Podcast(ContentObject):
     def get_home_page_url(self, ssl=False):
         return helpers.absolute_url('/', ssl=ssl)
 
-    def get_feed_url(self, ssl=False):
+    def get_feed_head_url(self, ssl=False):
         from django.core.urlresolvers import reverse
 
         return helpers.absolute_url(
-            reverse('podcast_feed'),
+            reverse('podcast_feed_head'),
+            ssl=ssl
+        )
+
+    def get_feed_body_url(self, ssl=False):
+        from django.core.urlresolvers import reverse
+
+        return helpers.absolute_url(
+            reverse('podcast_feed_body'),
             ssl=ssl
         )
 
@@ -221,16 +240,49 @@ class Podcast(ContentObject):
         from django.core.urlresolvers import reverse
 
         return helpers.absolute_url(
-            reverse('podcast_subscribe')
+            reverse('podcast_subscribe'),
+            ssl=ssl
         )
 
-    def as_dict(self, page=1, ssl=False):
+    def head_dict(self, ssl=False):
+        artwork = {}
+
+        if self.artwork:
+            artwork = {
+                '@1x': self.artwork.url,
+                '@2x': self.artwork.url
+            }
+
+        return {
+            'version': settings.DOTPODCAST_VERSION,
+            'title': self.name,
+            'home_page_url': self.get_home_page_url(ssl=ssl),
+            'meta_url': self.get_feed_head_url(ssl=ssl),
+            'items_url': self.get_feed_body_url(ssl=ssl),
+            'subscription_url': self.get_subscription_url(ssl=ssl),
+            'description': self.subtitle,
+            'user_comment': settings.USER_COMMENT,
+            'author': self.author and self.author.as_dict() or None,
+            'expired': False,
+            'subtitle': self.subtitle,
+            'taxonomy_terms': list(
+                self.taxonomy_terms.values_list(
+                    'url', flat=True
+                )
+            ),
+            'artwork': artwork,
+            'description_text': self.get_description_plain(),
+            'description_html': self.description
+        }
+
+    def body_dict(self, page=1, ssl=False):
         from django.core.paginator import (
             Paginator, EmptyPage, PageNotAnInteger
         )
 
+        episodes = self.episodes.select_related().prefetch_related().published()
         paginator = Paginator(
-            self.episodes.select_related().prefetch_related().live(),
+            episodes,
             settings.EPISODES_PER_PAGE
         )
 
@@ -241,69 +293,97 @@ class Podcast(ContentObject):
         except EmptyPage:
             page_obj = paginator.page(paginator.num_pages)
 
-        ext = {
+        meta = {
             'version': settings.DOTPODCAST_VERSION,
-            'subscription_url': self.get_subscription_url(ssl=ssl),
-            'subtitle': self.subtitle,
-            'taxonomy_terms': list(
-                self.taxonomy_terms.values_list(
-                    'url', flat=True
-                )
-            ),
-            'artwork': {
-                '@1x': (
-                    self.artwork and
-                    self.artwork.url or
-                    None
-                ),
-                '@2x': (
-                    self.artwork and
-                    self.artwork.url or
-                    None
-                )
-            },
-            'description_text': self.get_description_plain(),
-            'description_html': self.description
-        }
-
-        data = {
-            'version': settings.JSONFEED_VERSION,
-            'title': self.name,
-            'home_page_url': self.get_home_page_url(ssl=ssl),
-            'feed_url': self.get_feed_url(ssl=ssl),
-            'description': self.subtitle,
-            'user_comment': settings.USER_COMMENT,
-            'author': self.author and self.author.as_dict() or None,
-            'expired': False,
-            '_dotpodcast': ext,
-            'items': [
-                episode.as_dict(ssl=ssl) for episode in page_obj.object_list
-            ]
+            'total_count': episodes.count(),
+            'per_page': settings.EPISODES_PER_PAGE
         }
 
         next_url = self.get_next_url(page_obj, ssl=ssl)
         if next_url:
-            data['next_url'] = next_url
+            meta['next_url'] = next_url
 
-        return data
+        previous_url = self.get_previous_url(page_obj, ssl=ssl)
+        if previous_url:
+            meta['previous_url'] = previous_url
 
-    def dump_json(self, stream, page=1, ssl=False):
+        return {
+            'meta': meta,
+            'items': [
+                episode.as_dict(ssl=ssl)
+                for episode in page_obj.object_list
+            ]
+        }
+
+    def dump_head_json(self, stream, ssl=False):
         import json
 
         json.dump(
-            self.as_dict(page=page, ssl=ssl),
+            self.head_dict(ssl=ssl),
             stream,
             ensure_ascii=False,
             indent=4
         )
 
-    def subscribe(self, kind, token, app_name='', app_url='', app_logo=''):
-        for subscription in self.subscribers.filter(source_token=token):
-            return subscription
+    def dump_body_json(self, stream, page=1, ssl=False):
+        import json
 
-        return self.subscribers.create(
-            source_token=token
+        json.dump(
+            self.body_dict(page=page, ssl=ssl),
+            stream,
+            ensure_ascii=False,
+            indent=4
         )
+
+    def subscribe(
+        self, kind, token,
+        app_name='', app_url='', app_logo='',
+        activity='listen'
+    ):
+        if kind == 'preview':
+            for player in self.players.filter(app_url=app_url):
+                return player
+
+            player = self.players.create(
+                app_name=app_name,
+                app_url=app_url,
+                app_logo=app_logo
+            )
+
+            player.full_clean()
+            return player
+
+        if kind == 'download':
+            try:
+                activity_kind = {
+                    'listen': 'c',
+                    'subscribe': 's',
+                    '': None
+                }[activity]
+            except KeyError:
+                raise ValidationError('Invalid activity.')
+
+            for subscription in self.subscribers.filter(source_token=token):
+                if activity_kind:
+                    subscription.kind = activity_kind
+                    subscription.full_clean()
+                    subscription.save()
+
+                return subscription
+
+            subscriber = self.subscribers.create(
+                app_name=app_name,
+                app_url=app_url,
+                app_logo=app_logo,
+                source_token=token,
+                kind=activity_kind or 'listen'
+            )
+
+            subscriber.full_clean()
+            return subscriber
+
+        if kind == 'transit':
+            raise NotImplementedError('Transit tokens not yet implemented.')
 
     @transaction.atomic()
     def onboard(self, admin):
@@ -369,6 +449,7 @@ class Episode(ContentObject):
         on_delete=models.CASCADE
     )
 
+    guid = models.CharField(max_length=36)
     title = models.CharField(max_length=500)
     subtitle = models.TextField(null=True, blank=True)
     summary = models.TextField(null=True, blank=True)
@@ -432,24 +513,28 @@ class Episode(ContentObject):
         return self.title
 
     def download(self, kind):
-        if kind == 'audio' and self.audio_enclosure:
-            return {
-                'url': self.audio_enclosure.url,
-                'mime_type': self.audio_mimetype,
-                'file_size': self.audio_filesize
-            }
+        if kind == 'audio':
+            url = self.audio_enclosure.url
+            mime_type = self.audio_mimetype
+            file_size = self.audio_filesize
+        elif kind == 'video':
+            url = self.video_enclosure.url
+            mime_type = self.video_mimetype
+            file_size = self.video_filesize
+        else:
+            raise Exception('Unknown media kind')
 
-        if kind == 'video' and self.video_enclosure:
-            return {
-                'url': self.video_enclosure.url,
-                'mime_type': self.video_mimetype,
-                'file_size': self.video_filesize
-            }
-
-        raise Exception('Unknown media kind')
+        return {
+            'url': url,
+            'mime_type': mime_type,
+            'file_size': file_size
+        }
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
+            if not self.guid:
+                self.guid = unicode(uuid4())
+
             runtasks = []
 
             if not self.audio_duration:
@@ -479,35 +564,29 @@ class Episode(ContentObject):
             django_rq.enqueue(func, self.pk)
 
     def get_page_url(self, ssl=False):
-        return helpers.absolute_url(
-            '/%s/' % self.get_absolute_url(),
-            ssl=ssl
-        )
+        from django.core.urlresolvers import reverse
 
-    @models.permalink
-    def get_absolute_url(self):
         if self.number_bonus:
-            return (
+            url = reverse(
                 'bonus_episode_detail',
-                [
+                args=[
                     self.season.number,
                     unicode(self.number).zfill(2),
                     self.letter_bonus
                 ]
             )
+        else:
+            url = reverse(
+                'episode_detail',
+                args=[
+                    self.season.number,
+                    unicode(self.number).zfill(2)
+                ]
+            )
 
-        return (
-            'episode_detail',
-            [
-                self.season.number,
-                unicode(self.number).zfill(2)
-            ]
-        )
+        return helpers.absolute_url(url, ssl=ssl)
 
     def get_body_plain(self):
-        if not self.body:
-            return ''
-
         from bs4 import BeautifulSoup
 
         return ' '.join(
@@ -528,19 +607,31 @@ class Episode(ContentObject):
         )
 
     def as_dict(self, ssl=False):
-        ext = {}
+        data = {
+            'id': self.guid,
+            'url': self.get_page_url(ssl=ssl),
+            'title': self.title,
+            'content_text': self.get_body_plain(),
+            'content_html': self.body,
+            'summary': self.summary,
+            'image': self.artwork and self.artwork.url,
+            'date_published': self.date_published.replace(
+                microsecond=0
+            ).isoformat(),
+            'author': self.podcast.author.as_dict()
+        }
 
         if self.subtitle:
-            ext['subtitle'] = self.subtitle
+            data['subtitle'] = self.subtitle
 
         if self.season:
-            ext['season_number'] = self.season.number
+            data['season_number'] = self.season.number
 
         if self.number:
-            ext['episode_number'] = self.number
+            data['episode_number'] = self.number
 
         if self.audio_enclosure:
-            ext['content_audio'] = {
+            data['content_audio'] = {
                 'mime_type': self.audio_mimetype,
                 'duration': self.audio_duration,
                 'url': self.get_download_url('audio'),
@@ -548,29 +639,12 @@ class Episode(ContentObject):
             }
 
         if self.video_enclosure:
-            ext['content_video'] = {
+            data['content_video'] = {
                 'mime_type': self.video_mimetype,
                 'duration': self.video_duration,
                 'url': self.get_download_url('video'),
                 'file_size': self.video_filesize
             }
-
-        data = {
-            'id': self.get_page_url(ssl=ssl),
-            'url': self.get_page_url(ssl=ssl),
-            'title': self.title,
-            'content_text': self.get_body_plain(),
-            'content_html': self.body,
-            'summary': self.summary,
-            'date_published': self.date_published.replace(
-                microsecond=0
-            ).isoformat(),
-            'author': self.podcast.author.as_dict(),
-            '_dotpodcast': ext
-        }
-
-        if self.artwork:
-            data['image'] = self.artwork.url
 
         if self.date_modified:
             data['date_modified'] = self.date_modified.replace(
@@ -687,7 +761,21 @@ class BlogPost(ContentObject):
         get_latest_by = 'published'
 
 
-class Subscriber(models.Model):
+class TokenPair(models.Model):
+    public_token = models.CharField(max_length=64, unique=True)
+    secret_token = models.CharField(max_length=256, unique=True)
+
+    def save(self, *args, **kwargs):
+        if not self.public_token:
+            self.public_token = helpers.create_token(32)
+
+        if not self.secret_token:
+            self.secret_token = helpers.create_token(128, True)
+
+        super(TokenPair, self).save(*args, **kwargs)
+
+
+class Subscriber(TokenPair):
     podcast = models.ForeignKey(Podcast, related_name='subscribers')
     app_name = models.CharField(max_length=100, null=True, blank=True)
     app_url = models.URLField(u'app URL', max_length=512, null=True, blank=True)
@@ -700,26 +788,15 @@ class Subscriber(models.Model):
     )
 
     source_token = models.CharField(max_length=255)
-    public_token = models.CharField(max_length=64, unique=True)
-    secret_token = models.CharField(max_length=256, unique=True)
     date_subscribed = models.DateTimeField(auto_now_add=True)
     last_fetched = models.DateTimeField(null=True, blank=True)
 
     def __unicode__(self):
         return self.name or self.public_token
 
-    def save(self, *args, **kwargs):
-        if not self.public_token:
-            self.public_token = helpers.create_token(32)
-
-        if not self.secret_token:
-            self.secret_token = helpers.create_token(128, True)
-
-        super(Subscriber, self).save(*args, **kwargs)
-
     def as_dict(self):
         return {
-            'subscriber_hash': self.source_token,
+            'subscriber_token': self.public_token,
             'subscriber_secret': self.secret_token
         }
 
@@ -728,26 +805,19 @@ class Subscriber(models.Model):
         unique_together = ('source_token', 'podcast')
 
 
-class Player(models.Model):
+class Player(TokenPair):
     podcast = models.ForeignKey(Podcast, related_name='players')
     app_name = models.CharField(max_length=100, null=True, blank=True)
     app_url = models.URLField(u'app URL', max_length=512)
     app_logo = models.URLField(max_length=512, null=True, blank=True)
-    source_token = models.CharField(max_length=255, unique=True)
-    secret_token = models.CharField(max_length=256, unique=True)
     last_fetched = models.DateTimeField(null=True, blank=True)
 
     def __unicode__(self):
         return self.name or self.app_url
 
-    def save(self, *args, **kwargs):
-        if not self.secret_token:
-            self.secret_token = helpers.create_token(128, True)
-
-        super(Player, self).save(*args, **kwargs)
-
     def as_dict(self):
         return {
+            'preview_token': self.public_token,
             'preview_secret': self.secret_token
         }
 

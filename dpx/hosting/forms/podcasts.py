@@ -14,7 +14,32 @@ class SubscribeForm(forms.Form):
         )
     )
 
-    subscriber_hash = forms.CharField()
+    activity = forms.ChoiceField(
+        choices=(
+            ('listen', 'listen'),
+            ('subscribe', 'subscribe')
+        ),
+        initial='listen'
+    )
+
+    subscriber_hash = forms.CharField(required=False)
+
+    def clean(self):
+        app_url = self.cleaned_data.get('app_url')
+        subscriber_hash = self.cleaned_data.get('subscriber_hash')
+        token_kind = self.cleaned_data['token_kind']
+
+        if token_kind == 'download' and not subscriber_hash:
+            raise forms.ValidationError(
+                'subscriber_hash is required to obtain a download token'
+            )
+
+        if token_kind == 'preview' and not app_url:
+            raise forms.ValidationError(
+                'app_url is required to obtain a preview token'
+            )
+
+        return self.cleaned_data
 
     def subscribe(self, podcast):
         self.instance = podcast.subscribe(
@@ -22,7 +47,8 @@ class SubscribeForm(forms.Form):
             token=self.cleaned_data['subscriber_hash'],
             app_name=self.cleaned_data.get('app_name'),
             app_url=self.cleaned_data.get('app_url'),
-            app_logo=self.cleaned_data.get('app_logo')
+            app_logo=self.cleaned_data.get('app_logo'),
+            activity=self.cleaned_data.get('activity')
         )
 
         return self.instance
@@ -40,13 +66,9 @@ class DownloadForm(forms.Form):
         from urlparse import urlparse
 
         content_id = self.cleaned_data['content_id']
-        path = urlparse(content_id).path
-        start, podcast_slug, episode_slug, end = path.split('/')
-
-        if podcast_slug == podcast.slug:
-            for episode in podcast.episodes.filter(slug=episode_slug):
-                self.instance = episode.download(kind)
-                return self.instance
+        for episode in podcast.episodes.filter(guid=content_id):
+            self.instance = episode.download(kind)
+            return self.instance
 
         raise Episode.NotFound('Episode not found.')
 

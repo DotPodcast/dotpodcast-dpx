@@ -1,6 +1,6 @@
 from django.http.response import HttpResponse, HttpResponseBase, Http404
 from django.views.generic.base import View
-from ..exceptions import ViewError, InvalidContentTypeError
+from ..exceptions import ViewError, InvalidContentError, InvalidContentTypeError
 import json
 
 
@@ -20,14 +20,14 @@ class JsonView(View):
         except Http404 as ex:
             data = self.response(
                 {
-                    'error': unicode(ex)
+                    'error': str(ex)
                 },
                 status=404
             )
         except ViewError as ex:
             data = self.response(
                 {
-                    'error': unicode(ex)
+                    'error': str(ex)
                 },
                 status=400
             )
@@ -36,6 +36,13 @@ class JsonView(View):
             return data
 
         return self.response(data)
+
+    def options(self, request):
+        return self.response(
+            {
+                'allowed_methods': self._allowed_methods()
+            }
+        )
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         return self.response(
@@ -51,6 +58,9 @@ class JsonView(View):
             content_type='application/json',
             status=status
         )
+
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Headers'] = 'Content-Type'
 
         if data is not None:
             json.dump(data, response)
@@ -80,11 +90,18 @@ class FormMixin(object):
         return form_class(**self.get_form_kwargs())
 
     def get_request_data(self):
-        content_type = self.request.META['CONTENT_TYPE']
-        if content_type == 'application/json':
-            return json.loads(self.request.body)
+        content_type = self.request.META.get('CONTENT_TYPE')
+        if 'application/json' in content_type:
+            try:
+                return json.loads(self.request.body.decode('utf-8'))
+            except json.JSONDecodeError as ex:
+                raise InvalidContentError(
+                    'Invalid JSON data. (%s)' % str(ex)
+                )
 
-        raise InvalidContentTypeError('Invalid content type')
+        raise InvalidContentTypeError(
+            'Invalid content type. Only application/json is supported.'
+        )
 
     def get_form_kwargs(self):
         kwargs = {
