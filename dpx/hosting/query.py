@@ -100,6 +100,7 @@ class TermQuerySet(QuerySet):
 def _ingest(podcast_id, datum, async=False):
     from dateutil.parser import parse as parse_date
     from urlparse import urlparse, urlunparse, urljoin
+    from uuid import uuid4
     from ..core import realtime
     from .importing import download_file
     from .models import Podcast, Episode, Season
@@ -218,6 +219,7 @@ def _ingest(podcast_id, datum, async=False):
             else:
                 return
 
+        episode.guid = unicode(uuid4())
         episode.full_clean()
         episode.save()
     except Exception, ex:
