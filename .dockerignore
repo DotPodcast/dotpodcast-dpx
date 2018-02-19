@@ -1,0 +1,11 @@
+.DS_Store
+.env
+.Python
+.vagrant
+*.pyc
+*.sqlite3
+/include
+/lib
+/media
+/postgres-data
+/venv
