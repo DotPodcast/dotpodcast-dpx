@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
-from ..models import Podcast, TokenPair
+from django.views.generic.list import ListView
+from ..models import Podcast, TokenPair, Episode
 from ..forms.podcasts import SubscribeForm, DownloadForm
 from .. import exceptions
 from .base import JsonView, FormMixin
@@ -91,3 +92,15 @@ class DownloadView(PodcastMixin, FormMixin, JsonView):
             return form.download(self.podcast, kind)
 
         return self.form_invalid(form)
+
+
+class RSSFeedView(PodcastMixin, ListView):
+    template_name = 'hosting/rss.xml'
+    model = Episode
+    content_type = 'application/xml'
+
+    def get_context_data(self, **kwargs):
+        context = super(RSSFeedView, self).get_context_data(**kwargs)
+        context['podcast'] = self.podcast
+
+        return context

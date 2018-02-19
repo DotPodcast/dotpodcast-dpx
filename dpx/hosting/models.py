@@ -236,6 +236,14 @@ class Podcast(ContentObject):
             ssl=ssl
         )
 
+    def get_rss_feed_url(self, ssl=False):
+        from django.core.urlresolvers import reverse
+
+        return helpers.absolute_url(
+            reverse('podcast_feed_rss'),
+            ssl=ssl
+        )
+
     def get_subscription_url(self, ssl=False):
         from django.core.urlresolvers import reverse
 
@@ -596,8 +604,14 @@ class Episode(ContentObject):
             ).findAll(text=True)
         ).strip()
 
-    def get_download_url(self, kind):
+    def get_download_url(self, kind=None):
         from django.core.urlresolvers import reverse
+
+        if not kind:
+            if self.video_enclosure:
+                kind = 'video'
+            else:
+                kind = 'audio'
 
         return helpers.absolute_url(
             reverse(
@@ -605,6 +619,51 @@ class Episode(ContentObject):
                 args=[kind]
             )
         )
+
+    def get_filesize(self, kind=None):
+        if not kind:
+            if self.video_enclosure:
+                kind = 'video'
+            else:
+                kind = 'audio'
+
+        if kind == 'audio':
+            return self.audio_filesize
+
+        if kind == 'video':
+            return self.video_filesize
+
+        raise Exception('File type "%s" not recognised' % kind)
+
+    def get_duration(self, kind=None):
+        if not kind:
+            if self.video_enclosure:
+                kind = 'video'
+            else:
+                kind = 'audio'
+
+        if kind == 'audio':
+            return self.audio_duration
+
+        if kind == 'video':
+            return self.video_duration
+
+        raise Exception('File type "%s" not recognised' % kind)
+
+    def get_mimetype(self, kind=None):
+        if not kind:
+            if self.video_enclosure:
+                kind = 'video'
+            else:
+                kind = 'audio'
+
+        if kind == 'audio':
+            return self.audio_mimetype
+
+        if kind == 'video':
+            return self.video_mimetype
+
+        raise Exception('File type "%s" not recognised' % kind)
 
     def as_dict(self, ssl=False):
         data = {
