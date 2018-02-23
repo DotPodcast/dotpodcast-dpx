@@ -67,7 +67,7 @@ class DownloadForm(forms.Form):
 
         content_id = self.cleaned_data['content_id']
         for episode in podcast.episodes.filter(guid=content_id):
-            self.instance = episode.download(kind)
+            self.instance = episode.download(request, kind)
             return self.instance
 
         raise Episode.NotFound('Episode not found.')

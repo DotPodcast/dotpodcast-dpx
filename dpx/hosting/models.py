@@ -250,8 +250,8 @@ class Podcast(ContentObject):
 
         if self.artwork:
             artwork = {
-                '@1x': self.artwork.url,
-                '@2x': self.artwork.url
+                '@1x': request.build_absolute_uri(self.artwork.url),
+                '@2x': request.build_absolute_uri(self.artwork.url)
             }
 
         return {
@@ -513,13 +513,13 @@ class Episode(ContentObject):
     def __unicode__(self):
         return self.title
 
-    def download(self, kind):
+    def download(self, request, kind):
         if kind == 'audio':
-            url = self.audio_enclosure.url
+            url = request.build_absolute_uri(self.audio_enclosure.url)
             mime_type = self.audio_mimetype
             file_size = self.audio_filesize
         elif kind == 'video':
-            url = self.video_enclosure.url
+            url = request.build_absolute_uri(self.video_enclosure.url)
             mime_type = self.video_mimetype
             file_size = self.video_filesize
         else:
@@ -666,7 +666,9 @@ class Episode(ContentObject):
             'content_text': self.get_body_plain(),
             'content_html': self.body,
             'summary': self.summary,
-            'image': self.artwork and self.artwork.url,
+            'image': self.artwork and request.build_absolute_uri(
+                self.artwork.url
+            ),
             'date_published': self.date_published.replace(
                 microsecond=0
             ).isoformat(),
