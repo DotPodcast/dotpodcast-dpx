@@ -161,7 +161,7 @@ DROPBOX_API_SECRET = os.getenv('DROPBOX_API_SECRET')
 
 DOMAIN = os.getenv(
     'DOMAIN',
-    os.getenv('WEB_1_ENV_DOCKERCLOUD_CONTAINER_FQDN', 'localhost')
+    os.getenv('DOCKERCLOUD_CONTAINER_FQDN', 'localhost')
 )
 
 THUNDERPUSH_DOMAIN = os.getenv(

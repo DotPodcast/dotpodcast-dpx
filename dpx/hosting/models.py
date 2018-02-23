@@ -66,10 +66,9 @@ class Person(ContentObject):
             from django.contrib.sites.models import Site
             from django.core.urlresolvers import reverse
 
-            site = Site.objects.get_current()
             return 'http%s://%s%s' % (
                 ssl and 's' or '',
-                site.domain,
+                site_settings.DOMAIN,
                 reverse('author', args=[self.slug])
             )
 
