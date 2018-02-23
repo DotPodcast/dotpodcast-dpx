@@ -87,14 +87,3 @@ def create_token(length, include_punctuation=False):
             random.sample(characters, length)
         )
     )
-
-def absolute_url(url, ssl=False):
-    from django.conf import settings
-    from urlparse import urljoin
-
-    base = 'http%s://%s/' % (
-        (ssl and 's' or ''),
-        settings.DOMAIN
-    )
-
-    return urljoin(base, url)

@@ -61,14 +61,12 @@ class Person(ContentObject):
 
         super(Person, self).save(*args, **kwargs)
 
-    def as_dict(self, ssl=False):
+    def as_dict(self, request):
         def get_url():
             from django.contrib.sites.models import Site
             from django.core.urlresolvers import reverse
 
-            return 'http%s://%s%s' % (
-                ssl and 's' or '',
-                site_settings.DOMAIN,
+            return request.build_absolute_uri(
                 reverse('author', args=[self.slug])
             )
 
@@ -190,12 +188,12 @@ class Podcast(ContentObject):
             ).findAll(text=True)
         ).strip()
 
-    def get_previous_url(self, page, ssl=False):
+    def get_previous_url(self, page, request):
         from django.utils.http import urlencode
 
         if page.has_previous():
             return '%s?%s' % (
-                self.get_feed_body_url(ssl=ssl),
+                self.get_feed_body_url(request),
                 urlencode(
                     {
                         'page': page.previous_page_number()
@@ -203,12 +201,12 @@ class Podcast(ContentObject):
                 )
             )
 
-    def get_next_url(self, page, ssl=False):
+    def get_next_url(self, page, request):
         from django.utils.http import urlencode
 
         if page.has_next():
             return '%s?%s' % (
-                self.get_feed_body_url(ssl=ssl),
+                self.get_feed_body_url(request),
                 urlencode(
                     {
                         'page': page.next_page_number()
@@ -216,42 +214,38 @@ class Podcast(ContentObject):
                 )
             )
 
-    def get_home_page_url(self, ssl=False):
-        return helpers.absolute_url('/', ssl=ssl)
+    def get_home_page_url(self, request):
+        return request.build_absolute_uri('/')
 
-    def get_feed_head_url(self, ssl=False):
+    def get_feed_head_url(self, request):
         from django.core.urlresolvers import reverse
 
-        return helpers.absolute_url(
-            reverse('podcast_feed_head'),
-            ssl=ssl
+        return request.build_absolute_uri(
+            reverse('podcast_feed_head')
         )
 
-    def get_feed_body_url(self, ssl=False):
+    def get_feed_body_url(self, request):
         from django.core.urlresolvers import reverse
 
-        return helpers.absolute_url(
-            reverse('podcast_feed_body'),
-            ssl=ssl
+        return request.build_absolute_uri(
+            reverse('podcast_feed_body')
         )
 
-    def get_rss_feed_url(self, ssl=False):
+    def get_rss_feed_url(self, request):
         from django.core.urlresolvers import reverse
 
-        return helpers.absolute_url(
-            reverse('podcast_feed_rss'),
-            ssl=ssl
+        return request.build_absolute_uri(
+            reverse('podcast_feed_rss')
         )
 
-    def get_subscription_url(self, ssl=False):
+    def get_subscription_url(self, request):
         from django.core.urlresolvers import reverse
 
-        return helpers.absolute_url(
-            reverse('podcast_subscribe'),
-            ssl=ssl
+        return request.build_absolute_uri(
+            reverse('podcast_subscribe')
         )
 
-    def head_dict(self, ssl=False):
+    def head_dict(self, request):
         artwork = {}
 
         if self.artwork:
@@ -263,13 +257,13 @@ class Podcast(ContentObject):
         return {
             'version': settings.DOTPODCAST_VERSION,
             'title': self.name,
-            'home_page_url': self.get_home_page_url(ssl=ssl),
-            'meta_url': self.get_feed_head_url(ssl=ssl),
-            'items_url': self.get_feed_body_url(ssl=ssl),
-            'subscription_url': self.get_subscription_url(ssl=ssl),
+            'home_page_url': self.get_home_page_url(request),
+            'meta_url': self.get_feed_head_url(request),
+            'items_url': self.get_feed_body_url(request),
+            'subscription_url': self.get_subscription_url(request),
             'description': self.subtitle,
             'user_comment': settings.USER_COMMENT,
-            'author': self.author and self.author.as_dict() or None,
+            'author': self.author and self.author.as_dict(request) or None,
             'expired': False,
             'subtitle': self.subtitle,
             'taxonomy_terms': list(
@@ -282,7 +276,7 @@ class Podcast(ContentObject):
             'description_html': self.description
         }
 
-    def body_dict(self, page=1, ssl=False):
+    def body_dict(self, request, page=1):
         from django.core.paginator import (
             Paginator, EmptyPage, PageNotAnInteger
         )
@@ -306,37 +300,37 @@ class Podcast(ContentObject):
             'per_page': settings.EPISODES_PER_PAGE
         }
 
-        next_url = self.get_next_url(page_obj, ssl=ssl)
+        next_url = self.get_next_url(page_obj, request)
         if next_url:
             meta['next_url'] = next_url
 
-        previous_url = self.get_previous_url(page_obj, ssl=ssl)
+        previous_url = self.get_previous_url(page_obj, request)
         if previous_url:
             meta['previous_url'] = previous_url
 
         return {
             'meta': meta,
             'items': [
-                episode.as_dict(ssl=ssl)
+                episode.as_dict(request)
                 for episode in page_obj.object_list
             ]
         }
 
-    def dump_head_json(self, stream, ssl=False):
+    def dump_head_json(self, stream, request):
         import json
 
         json.dump(
-            self.head_dict(ssl=ssl),
+            self.head_dict(request),
             stream,
             ensure_ascii=False,
             indent=4
         )
 
-    def dump_body_json(self, stream, page=1, ssl=False):
+    def dump_body_json(self, stream, request, page=1):
         import json
 
         json.dump(
-            self.body_dict(page=page, ssl=ssl),
+            self.body_dict(request, page=page),
             stream,
             ensure_ascii=False,
             indent=4
@@ -570,7 +564,7 @@ class Episode(ContentObject):
             func = getattr(tasks, task)
             django_rq.enqueue(func, self.pk)
 
-    def get_page_url(self, ssl=False):
+    def get_page_url(self, request):
         from django.core.urlresolvers import reverse
 
         if self.number_bonus:
@@ -591,7 +585,7 @@ class Episode(ContentObject):
                 ]
             )
 
-        return helpers.absolute_url(url, ssl=ssl)
+        return request.build_absolute_uri(url)
 
     def get_body_plain(self):
         from bs4 import BeautifulSoup
@@ -603,7 +597,7 @@ class Episode(ContentObject):
             ).findAll(text=True)
         ).strip()
 
-    def get_download_url(self, kind=None):
+    def get_download_url(self, request, kind=None):
         from django.core.urlresolvers import reverse
 
         if not kind:
@@ -612,7 +606,7 @@ class Episode(ContentObject):
             else:
                 kind = 'audio'
 
-        return helpers.absolute_url(
+        return request.build_absolute_uri(
             reverse(
                 'episode_download',
                 args=[kind]
@@ -664,10 +658,10 @@ class Episode(ContentObject):
 
         raise Exception('File type "%s" not recognised' % kind)
 
-    def as_dict(self, ssl=False):
+    def as_dict(self, request):
         data = {
             'id': self.guid,
-            'url': self.get_page_url(ssl=ssl),
+            'url': self.get_page_url(request),
             'title': self.title,
             'content_text': self.get_body_plain(),
             'content_html': self.body,
@@ -676,7 +670,7 @@ class Episode(ContentObject):
             'date_published': self.date_published.replace(
                 microsecond=0
             ).isoformat(),
-            'author': self.podcast.author.as_dict()
+            'author': self.podcast.author.as_dict(request)
         }
 
         if self.subtitle:
@@ -692,7 +686,7 @@ class Episode(ContentObject):
             data['content_audio'] = {
                 'mime_type': self.audio_mimetype,
                 'duration': self.audio_duration,
-                'url': self.get_download_url('audio'),
+                'url': self.get_download_url(request, 'audio'),
                 'file_size': self.audio_filesize
             }
 
@@ -700,7 +694,7 @@ class Episode(ContentObject):
             data['content_video'] = {
                 'mime_type': self.video_mimetype,
                 'duration': self.video_duration,
-                'url': self.get_download_url('video'),
+                'url': self.get_download_url(request, 'video'),
                 'file_size': self.video_filesize
             }
 

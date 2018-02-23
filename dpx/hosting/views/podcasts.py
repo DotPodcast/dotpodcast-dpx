@@ -17,10 +17,7 @@ class PodcastMixin(object):
 class FeedHeadView(PodcastMixin, JsonView):
     def get(self, request):
         response = self.response()
-        self.podcast.dump_head_json(
-            response,
-            ssl=request.is_secure()
-        )
+        self.podcast.dump_head_json(response, request)
 
         return response
 
@@ -31,7 +28,7 @@ class FeedBodyView(PodcastMixin, JsonView):
         self.podcast.dump_body_json(
             response,
             page=request.GET.get('page', '1'),
-            ssl=request.is_secure()
+            request=request
         )
 
         return response

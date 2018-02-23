@@ -16,9 +16,7 @@ class EpisodeListView(PodcastMixin, ListView):
 
         for podcast in Podcast.objects.all()[:1]:
             context['podcast'] = podcast
-            context['feed_head_url'] = podcast.get_feed_head_url(
-                ssl=self.request.is_secure()
-            )
+            context['feed_head_url'] = podcast.get_feed_head_url(self.request)
 
         return context
 
