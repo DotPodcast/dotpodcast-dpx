@@ -19,7 +19,7 @@
         </a>
     {% endfor %}
 
-    <a href="dotpodcast://{{ DOMAIN }}/feed.json" class="social-links-menu">Subscribe</a>
+    <a href="{{ podcast.get_feed_head_url }}" class="social-links-menu" data-action="podto:subscribe" data-type="application/json+dotpodcast">Subscribe</a>
 </div>
 
 <div class="social-links" data-stellar-ratio="0.1">
@@ -29,5 +29,5 @@
         </a>
     {% endfor %}
 
-    <a href="dotpodcast://{{ DOMAIN }}/feed.json">Subscribe</a>
+    <a href="{{ podcast.get_feed_head_url }}" data-action="podto:subscribe" data-type="application/json+dotpodcast">Subscribe</a>
 </div>

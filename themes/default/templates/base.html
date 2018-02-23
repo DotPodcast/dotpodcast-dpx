@@ -32,6 +32,7 @@
         <script src="{% static 'js/jquery-2.1.0.min.js' %}"></script>
         <script src="{% static 'js/jquery.stellar.min.js' %}"></script>
         <script src="{% static 'js/subscribe.js' %}"></script>
+        <script src="{% static 'js/podto-subscribe.js' %}"></script>
     </head>
     <body>
         <div id="middle">
@@ -46,8 +47,7 @@
         </footer>
 
         <script>
-            var width = $(window).width();
-            if (width > 899) {
+            if($(window).width() > 899) {
                 $(document).ready(
                     function() {
                         $.stellar(
