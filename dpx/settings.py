@@ -159,7 +159,11 @@ LOGIN_REDIRECT_URL = '/admin/import/'
 DROPBOX_API_KEY = os.getenv('DROPBOX_API_KEY')
 DROPBOX_API_SECRET = os.getenv('DROPBOX_API_SECRET')
 
-DOMAIN = os.getenv('DOMAIN', 'localhost')
+DOMAIN = os.getenv(
+    'DOMAIN',
+    os.getenv('WEB_1_ENV_DOCKERCLOUD_CONTAINER_FQDN', 'localhost')
+)
+
 THUNDERPUSH_DOMAIN = os.getenv(
     'THUNDERPUSH_DOMAIN',
     os.getenv('WS_1_ENV_DOCKERCLOUD_CONTAINER_FQDN', DOMAIN)
