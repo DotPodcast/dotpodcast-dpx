@@ -5,13 +5,13 @@ from django.test import Client, TestCase
 from django.utils.timezone import now
 from django.core.files import File
 from os import path
-from .models import Podcast, Author, Taxonomy
-from .views.admin.dashboard import DashboardView
-from .views.admin.episodes import *
-from .views.admin.blog import *
-from .views.admin.pages import *
-from .views.admin.importing import CreateImportView, ImportDetailView
-from . import ADMIN_MENU_ITEMS
+from ..models import Podcast, Author, Taxonomy
+from ..views.admin.dashboard import DashboardView
+from ..views.admin.episodes import *
+from ..views.admin.blog import *
+from ..views.admin.pages import *
+from ..views.admin.importing import CreateImportView, ImportDetailView
+from .. import ADMIN_MENU_ITEMS
 
 
 class PodcastMixin(object):
@@ -144,6 +144,7 @@ class CreateEpisodeFormViewTestCase(PodcastMixin, TestCase):
                 'audio_enclosure': open(
                     path.join(
                         path.dirname(__file__),
+                        '..',
                         'fixtures',
                         'test_enclosure.mp3'
                     ),
@@ -174,6 +175,7 @@ class UpdateEpisodeFormViewTestCase(PodcastMixin, TestCase):
                 open(
                     path.join(
                         path.dirname(__file__),
+                        '..',
                         'fixtures',
                         'test_enclosure.mp3'
                     ),
@@ -219,6 +221,7 @@ class DeleteEpisodeViewTestCase(PodcastMixin, TestCase):
                 open(
                     path.join(
                         path.dirname(__file__),
+                        '..',
                         'fixtures',
                         'test_enclosure.mp3'
                     ),
