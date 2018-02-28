@@ -759,6 +759,12 @@ class EpisodeGuest(models.Model):
 
 
 class Page(ContentObject):
+    podcast = models.ForeignKey(
+        Podcast,
+        related_name='pages',
+        on_delete=models.CASCADE
+    )
+
     title = models.CharField(max_length=50)
     slug = models.SlugField(max_length=30, db_index=True)
     parent = models.ForeignKey('self', null=True)

@@ -2,7 +2,7 @@ from django import forms
 from django.utils.timezone import now
 from django.utils.translation import ugettext as _
 from ...core.widgets import DateTimeWidget
-from ..models import Page
+from ..models import Podcast, Page
 
 
 class PageForm(forms.ModelForm):
@@ -40,6 +40,16 @@ class PageForm(forms.ModelForm):
             field for field in self
             if field.name not in ('title', 'banner_image')
         ]
+
+    def save(self, commit=True):
+        obj = super(PageForm, self).save(commit=False)
+        for podcast in Podcast.objects.all()[:1]:
+            obj.podcast = podcast
+
+        if commit:
+            obj.save()
+
+        return obj
 
     class Meta:
         model = Page
