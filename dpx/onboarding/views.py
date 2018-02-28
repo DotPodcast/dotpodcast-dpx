@@ -39,7 +39,13 @@ class OnboardingFormView(FormView):
 class OnboardingCallbackView(LoginRequiredMixin, View):
     @transaction.atomic()
     def get(self, request):
-        Podcast.objects.first().onboard(request.user)
+        podcast = Podcast.objects.first()
+        if podcast is None:
+            return HttpResponseRedirect(
+                reverse('onboarding_welcome')
+            )
+
+        podcast.onboard(request.user)
 
         messages.success(
             self.request,
