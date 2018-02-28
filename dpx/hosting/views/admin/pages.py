@@ -41,8 +41,13 @@ class UpdatePageFormView(PageFormMixin, UpdateView):
     pass
 
 
-class DeletePageView(PageFormMixin, DeleteView):
+class DeletePageView(AdminViewMixin, DeleteView):
+    menu_item_name = 'pages'
     template_name = 'hosting/admin/page_delete.html'
+    model = Page
+
+    def get_query_set(self):
+        return super(DeletePageView, self).get_query_set().live()
 
     def get_success_url(self):
         return reverse('admin_page_list')

@@ -52,8 +52,13 @@ class UpdateEpisodeFormView(EpisodeFormMixin, UpdateView):
     pass
 
 
-class DeleteEpisodeView(EpisodeFormMixin, DeleteView):
+class DeleteEpisodeView(AdminViewMixin, DeleteView):
+    menu_item_name = 'episodes'
     template_name = 'hosting/admin/episode_delete.html'
+    model = Episode
+
+    def get_query_set(self):
+        return super(DeleteEpisodeView, self).get_query_set().live()
 
     def get_success_url(self):
         return reverse('admin_episode_list')

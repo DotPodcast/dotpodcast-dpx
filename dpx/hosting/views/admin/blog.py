@@ -41,8 +41,13 @@ class UpdateBlogPostFormView(BlogPostFormMixin, UpdateView):
     pass
 
 
-class DeleteBlogPostView(BlogPostFormMixin, DeleteView):
+class DeleteBlogPostView(AdminViewMixin, DeleteView):
+    menu_item_name = 'blog_posts'
     template_name = 'hosting/admin/blog_post_delete.html'
+    model = BlogPost
+
+    def get_query_set(self):
+        return super(DeleteBlogPostView, self).get_query_set().live()
 
     def get_success_url(self):
         return reverse('admin_blog_post_list')
