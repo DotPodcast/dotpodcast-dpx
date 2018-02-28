@@ -62,7 +62,7 @@ class DownloadForm(forms.Form):
     sub = forms.CharField()
     content_id = forms.CharField()
 
-    def download(self, podcast, kind):
+    def download(self, podcast, kind, request):
         from urlparse import urlparse
 
         content_id = self.cleaned_data['content_id']

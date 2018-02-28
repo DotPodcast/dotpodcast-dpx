@@ -86,7 +86,7 @@ class DownloadView(PodcastMixin, FormMixin, JsonView):
         form = self.get_form()
 
         if form.is_valid():
-            return form.download(self.podcast, kind)
+            return form.download(self.podcast, kind, request)
 
         return self.form_invalid(form)
 
