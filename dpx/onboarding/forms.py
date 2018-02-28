@@ -25,7 +25,7 @@ class OnboardingForm(forms.Form):
     )
 
     @transaction.atomic()
-    def save(self, commit=True):
+    def save(self):
         author = Author.objects.create(
             name=self.cleaned_data['author_name']
         )
@@ -36,29 +36,25 @@ class OnboardingForm(forms.Form):
             publisher_name=self.cleaned_data['author_name']
         )
 
-        if commit:
-            podcast.save()
+        podcast.save()
+        self.instance = podcast
 
-        return podcast
-
-    def _save_m2m(self):
         taxonomy = TAXONOMIES['language']
-        taxonomy = Taxonomy.objects.create(
-            name=taxonomy['name'],
-            url=taxonomy['base_url'],
-            description=taxonomy['description'],
-            required=True
-        )
-
         language = self.cleaned_data.get('language')
+
         for (key, name) in settings.LANGUAGES:
             if key == language:
-                term = taxonomy.terms.create(
+                term = Taxonomy.objects.create(
+                    name=taxonomy['name'],
+                    url=taxonomy['base_url'],
+                    description=taxonomy['description'],
+                    required=True
+                ).terms.create(
                     name=name,
-                    url=taxonomy['url_template'] % key
+                    url=taxonomy['term_template'] % key
                 )
 
-                self.instance.terms.add(term)
+                podcast.taxonomy_terms.add(term)
                 break
 
-        return term
+        return podcast
