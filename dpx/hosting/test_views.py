@@ -130,6 +130,35 @@ class EpisodeListViewTestCase(PodcastMixin, TestCase):
     urlname = 'admin_episode_list'
 
 
+class CreateEpisodeFormViewTestCase(PodcastMixin, TestCase):
+    view = CreateEpisodeFormView
+    urlname = 'admin_create_episode'
+
+    def test_post(self):
+        self._test_post(
+            {
+                'title': 'Test',
+                'season': self.podcast.seasons.get().pk,
+                'number': 1,
+                'date_published': now().strftime('%Y-%m-%d %H:%I:%S'),
+                'audio_enclosure': open(
+                    path.join(
+                        path.dirname(__file__),
+                        'fixtures',
+                        'test_enclosure.mp3'
+                    ),
+                    'rb'
+                )
+            },
+            {
+                'title': 'Test',
+                'season': lambda o: o.season.number == 1,
+                'number': 1
+            },
+            lambda o: reverse('admin_update_episode', args=[o.pk])
+        )
+
+
 class UpdateEpisodeFormViewTestCase(PodcastMixin, TestCase):
     view = UpdateEpisodeFormView
     urlname = 'admin_update_episode'
@@ -175,18 +204,19 @@ class UpdateEpisodeFormViewTestCase(PodcastMixin, TestCase):
         self.episode.delete()
 
 
-class CreateEpisodeFormViewTestCase(PodcastMixin, TestCase):
-    view = CreateEpisodeFormView
-    urlname = 'admin_create_episode'
+class DeleteEpisodeViewTestCase(PodcastMixin, TestCase):
+    view = DeleteEpisodeView
+    urlname = 'admin_delete_episode'
 
-    def test_post(self):
-        self._test_post(
-            {
-                'title': 'Test',
-                'season': self.podcast.seasons.get().pk,
-                'number': 1,
-                'date_published': now().strftime('%Y-%m-%d %H:%I:%S'),
-                'audio_enclosure': open(
+    def setUp(self):
+        super(DeleteEpisodeViewTestCase, self).setUp()
+        self.episode = self.podcast.episodes.create(
+            title='Test',
+            season=self.podcast.seasons.get(),
+            number=1,
+            date_published=now(),
+            audio_enclosure=File(
+                open(
                     path.join(
                         path.dirname(__file__),
                         'fixtures',
@@ -194,14 +224,25 @@ class CreateEpisodeFormViewTestCase(PodcastMixin, TestCase):
                     ),
                     'rb'
                 )
-            },
-            {
-                'title': 'Test',
-                'season': lambda o: o.season.number == 1,
-                'number': 1
-            },
-            lambda o: reverse('admin_update_episode', args=[o.pk])
+            )
         )
+
+        self.urlargs = [self.episode.pk]
+
+    def test_post(self):
+        self.client.login(username='test', password='test')
+
+        path = reverse(self.urlname, args=self.urlargs)
+        response = self.client.post(path)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            self.view.model.objects.filter(
+                pk=self.episode.pk
+            ).exists()
+        )
+
+        self.assertEqual(response.url, reverse('admin_episode_list'))
 
 
 class BlogPostListViewTestCase(PodcastMixin, TestCase):
@@ -258,6 +299,36 @@ class UpdateBlogPostFormViewTestCase(PodcastMixin, TestCase):
         self.post.delete()
 
 
+class DeleteBlogPostViewTestCase(PodcastMixin, TestCase):
+    view = DeleteBlogPostView
+    urlname = 'admin_delete_blog_post'
+
+    def setUp(self):
+        super(DeleteBlogPostViewTestCase, self).setUp()
+        self.post = self.podcast.blog_posts.create(
+            title='Test',
+            slug='test',
+            date_published=now()
+        )
+
+        self.urlargs = [self.post.pk]
+
+    def test_post(self):
+        self.client.login(username='test', password='test')
+
+        path = reverse(self.urlname, args=self.urlargs)
+        response = self.client.post(path)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            self.view.model.objects.filter(
+                pk=self.post.pk
+            ).exists()
+        )
+
+        self.assertEqual(response.url, reverse('admin_blog_post_list'))
+
+
 class PageListViewTestCase(PodcastMixin, TestCase):
     view = PageListView
     urlname = 'admin_page_list'
@@ -308,6 +379,35 @@ class UpdatePageFormViewTestCase(PodcastMixin, TestCase):
 
     def tearDown(self):
         self.page.delete()
+
+
+class DeletePageViewTestCase(PodcastMixin, TestCase):
+    view = DeletePageView
+    urlname = 'admin_delete_page'
+
+    def setUp(self):
+        super(DeletePageViewTestCase, self).setUp()
+        self.page = self.podcast.pages.create(
+            title='Test',
+            slug='test'
+        )
+
+        self.urlargs = [self.page.pk]
+
+    def test_post(self):
+        self.client.login(username='test', password='test')
+
+        path = reverse(self.urlname, args=self.urlargs)
+        response = self.client.post(path)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            self.view.model.objects.filter(
+                pk=self.page.pk
+            ).exists()
+        )
+
+        self.assertEqual(response.url, reverse('admin_page_list'))
 
 
 class CreateImportViewTestCase(PodcastMixin, TestCase):
