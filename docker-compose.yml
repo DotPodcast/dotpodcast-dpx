@@ -25,6 +25,9 @@ services:
             - .dockerenv
         expose:
             - 8000
+        depends_on:
+            - db
+            - redis
     ws:
         image: kjagiello/thunderpush
         env_file:
