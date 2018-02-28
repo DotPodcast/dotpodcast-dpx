@@ -3,17 +3,22 @@ from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.test import Client, TestCase
 from django.utils.timezone import now
+from django.core.files import File
 from os import path
 from .models import Podcast, Author, Taxonomy
 from .views.admin.dashboard import DashboardView
-from .views.admin.episodes import EpisodeListView, CreateEpisodeFormView
-from .views.admin.blog import BlogPostListView, CreateBlogPostFormView
-from .views.admin.pages import PageListView, CreatePageFormView
+from .views.admin.episodes import *
+from .views.admin.blog import *
+from .views.admin.pages import *
 from .views.admin.importing import CreateImportView, ImportDetailView
 from . import ADMIN_MENU_ITEMS
 
 
 class PodcastMixin(object):
+    urlname = ''
+    urlargs = []
+    view = None
+
     def setUp(self):
         self.user = User.objects.create_user('test', 'test@example.com', 'test')
         self.podcast = Podcast.objects.create(
@@ -45,7 +50,7 @@ class PodcastMixin(object):
         """
         Test that an anonymous user is redirected to the login page.
         """
-        path = reverse(self.urlname)
+        path = reverse(self.urlname, args=self.urlargs)
         response = self.client.get(path)
 
         self.assertEqual(response.status_code, 302)
@@ -61,7 +66,7 @@ class PodcastMixin(object):
         """
 
         self.client.login(username='test', password='test')
-        path = reverse(self.urlname)
+        path = reverse(self.urlname, args=self.urlargs)
         response = self.client.get(path)
         menu_items = list(response.context['menu_items']())
 
@@ -92,7 +97,7 @@ class PodcastMixin(object):
 
     def _test_post(self, data, checks, get_success_url):
         self.client.login(username='test', password='test')
-        path = reverse(self.urlname)
+        path = reverse(self.urlname, args=self.urlargs)
         response = self.client.post(path, data)
 
         if response.status_code == 200:
@@ -123,6 +128,51 @@ class DashboardViewTest(PodcastMixin, TestCase):
 class EpisodeListViewTestCase(PodcastMixin, TestCase):
     view = EpisodeListView
     urlname = 'admin_episode_list'
+
+
+class UpdateEpisodeFormViewTestCase(PodcastMixin, TestCase):
+    view = UpdateEpisodeFormView
+    urlname = 'admin_update_episode'
+
+    def setUp(self):
+        super(UpdateEpisodeFormViewTestCase, self).setUp()
+        self.episode = self.podcast.episodes.create(
+            title='Test',
+            season=self.podcast.seasons.get(),
+            number=1,
+            date_published=now(),
+            audio_enclosure=File(
+                open(
+                    path.join(
+                        path.dirname(__file__),
+                        'fixtures',
+                        'test_enclosure.mp3'
+                    ),
+                    'rb'
+                )
+            )
+        )
+
+        self.urlargs = [self.episode.pk]
+
+    def test_post(self):
+        self._test_post(
+            {
+                'title': 'Test',
+                'season': self.podcast.seasons.get().pk,
+                'number': 1,
+                'date_published': now().strftime('%Y-%m-%d %H:%I:%S')
+            },
+            {
+                'title': 'Test',
+                'season': lambda o: o.season.number == 1,
+                'number': 1
+            },
+            lambda o: reverse('admin_update_episode', args=[self.episode.pk])
+        )
+
+    def tearDown(self):
+        self.episode.delete()
 
 
 class CreateEpisodeFormViewTestCase(PodcastMixin, TestCase):
@@ -177,6 +227,37 @@ class CreateBlogPostFormViewTestCase(PodcastMixin, TestCase):
         )
 
 
+class UpdateBlogPostFormViewTestCase(PodcastMixin, TestCase):
+    view = UpdateBlogPostFormView
+    urlname = 'admin_update_blog_post'
+
+    def setUp(self):
+        super(UpdateBlogPostFormViewTestCase, self).setUp()
+        self.post = self.podcast.blog_posts.create(
+            title='Test',
+            slug='test',
+            date_published=now()
+        )
+
+        self.urlargs = [self.post.pk]
+
+    def test_post(self):
+        self._test_post(
+            {
+                'title': 'Test',
+                'slug': 'test',
+                'date_published': now().strftime('%Y-%m-%d %H:%I:%S')
+            },
+            {
+                'title': 'Test'
+            },
+            lambda o: reverse('admin_update_blog_post', args=[self.post.pk])
+        )
+
+    def tearDown(self):
+        self.post.delete()
+
+
 class PageListViewTestCase(PodcastMixin, TestCase):
     view = PageListView
     urlname = 'admin_page_list'
@@ -198,6 +279,35 @@ class CreatePageFormViewTestCase(PodcastMixin, TestCase):
             },
             lambda o: reverse('admin_update_page', args=[o.pk])
         )
+
+
+class UpdatePageFormViewTestCase(PodcastMixin, TestCase):
+    view = UpdatePageFormView
+    urlname = 'admin_update_page'
+
+    def setUp(self):
+        super(UpdatePageFormViewTestCase, self).setUp()
+        self.page = self.podcast.pages.create(
+            title='Test',
+            slug='test'
+        )
+
+        self.urlargs = [self.page.pk]
+
+    def test_post(self):
+        self._test_post(
+            {
+                'title': 'Test',
+                'slug': 'test'
+            },
+            {
+                'title': 'Test'
+            },
+            lambda o: reverse('admin_update_page', args=[self.page.pk])
+        )
+
+    def tearDown(self):
+        self.page.delete()
 
 
 class CreateImportViewTestCase(PodcastMixin, TestCase):
