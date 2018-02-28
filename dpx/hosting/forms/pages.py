@@ -21,8 +21,6 @@ class PageForm(forms.ModelForm):
             self.fields['parent'].queryset.choices()
         )
 
-        print(self.fields['parent'].widget.choices)
-
     @property
     def header_fields(self):
         return [
