@@ -31,7 +31,7 @@ class AdminViewMixin(LoginRequiredMixin):
 
     def get_context_data(self, **kwargs):
         context = super(AdminViewMixin, self).get_context_data(**kwargs)
-        context['menu_items'] = self.get_menu_items()
+        context['menu_items'] = self.get_menu_items
         return context
 
 
