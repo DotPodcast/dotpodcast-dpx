@@ -11,6 +11,14 @@ DPX is a Dockerized solution for self-hosting a podcast compatible with the [Dot
 
 You can run DPX for local development and testing by using the _docker-compose.yml_ file in this repo.
 
+You'll also need to create a _.dockerenv_ file in the same directory, with the following:
+
+```
+PRIVATE_KEY=<set a private key for websocket service>
+PUBLIC_KEY=<set a public key for websocket service>
+SECRET_KEY=<set a secret key for Django>
+```
+
 Run `docker-compose up` and in a few seconds, you'll have a local development server running on _localhost:80_.
 
 ## Running tests
