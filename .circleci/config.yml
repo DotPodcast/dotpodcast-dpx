@@ -28,7 +28,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            python manage.py test --settings=dpx.settings_test
+            SECRET_KEY=foo python manage.py test --settings=dpx.settings_test
 
       - store_artifacts:
           path: test-reports
