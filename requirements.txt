@@ -13,13 +13,14 @@ chardet==3.0.4
 click==6.7
 commontools==0.1.0
 cryptography==1.8.1
+Django==1.11.10
+git+https://github.com/dotpodcast/django-blockstack-auth.git
 git+https://github.com/blockstack/blockstack-auth-python.git
 django-bootstrap3==9.1.0
 django-datetime-widget==0.9.3
 django-markdown-deux==1.0.5
 django-rq==1.0.1
 django-taggit==0.22.2
-Django==1.11.10
 dropbox==8.7.1
 ecdsa==0.13
 enum34==1.1.6
@@ -44,7 +45,7 @@ python-bitcoinrpc==0.1
 python-dateutil==2.6.1
 pytz==2018.3
 redis==2.10.6
-requests==2.18.4
+requests==2.13.0
 rq==0.10.0
 six==1.11.0
 urllib3==1.22
