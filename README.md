@@ -3,7 +3,7 @@ DPX
 
 Self-hosted DotPodcast environment, built in Django
 
----
+[![CircleCI](https://circleci.com/gh/DotPodcast/dotpodcast-dpx.svg?style=svg)](https://circleci.com/gh/DotPodcast/dotpodcast-dpx)
 
 DPX is a Dockerized solution for self-hosting a podcast compatible with the [DotPodcast protocol](https://dotpodcast.co/).
 
