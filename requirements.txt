@@ -13,7 +13,7 @@ chardet==3.0.4
 click==6.7
 commontools==0.1.0
 cryptography==1.8.1
-Django==1.11.10
+Django==1.11.29
 git+https://github.com/dotpodcast/django-blockstack-auth.git
 git+https://github.com/blockstack/blockstack-auth-python.git
 django-bootstrap3==9.1.0
