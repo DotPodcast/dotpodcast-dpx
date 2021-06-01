@@ -48,5 +48,5 @@ redis==2.10.6
 requests==2.13.0
 rq==0.10.0
 six==1.11.0
-urllib3==1.22
+urllib3==1.26.5
 utilitybelt==0.2.6
