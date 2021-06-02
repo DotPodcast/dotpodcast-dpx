@@ -31,7 +31,7 @@ ipaddress==1.0.19
 keychain==0.14.2.0
 keylib==0.1.1
 lxml==4.1.1
-markdown2==2.3.5
+markdown2==2.4.0
 msgpack-python==0.5.5
 mutagen==1.40.0
 packaging==17.1
