@@ -35,7 +35,7 @@ markdown2==2.3.5
 msgpack-python==0.5.5
 mutagen==1.40.0
 packaging==17.1
-Pillow==5.0.0
+Pillow==8.2.0
 psycopg2-binary==2.7.4
 pybitcoin==0.9.9
 pycparser==2.18
