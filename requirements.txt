@@ -39,7 +39,7 @@ Pillow==5.0.0
 psycopg2-binary==2.7.4
 pybitcoin==0.9.9
 pycparser==2.18
-PyJWT==1.5.0
+PyJWT==2.4.0
 pyparsing==2.2.0
 python-bitcoinrpc==0.1
 python-dateutil==2.6.1
