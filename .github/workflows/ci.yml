@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container:
+      image: circleci/python:2.7
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./venv
+          key: v1-dependencies-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            v1-dependencies-
+
+      - name: install dependencies
+        run: |
+          virtualenv venv
+          . venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Save cache
+        uses: actions/cache/save@v4
+        with:
+          path: ./venv
+          key: v1-dependencies-${{ hashFiles('requirements.txt') }}
+
+      - name: run tests
+        run: |
+          . venv/bin/activate
+          SECRET_KEY=foo python manage.py test --settings=dpx.settings_test
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: test-reports
